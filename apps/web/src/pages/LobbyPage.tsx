@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, type Room } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
+import { rememberRoom } from "../roomHistory";
 
 export default function LobbyPage() {
   const { user, token, logout } = useAuth();
@@ -28,6 +29,7 @@ export default function LobbyPage() {
     setError("");
     try {
       const res = await api.createRoom(token, roomName.trim() || `${user?.displayName} 的房间`);
+      rememberRoom({ ...res.room, hostName: user?.displayName });
       navigate(`/room/${res.room.code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建失败");
@@ -44,7 +46,8 @@ export default function LobbyPage() {
     setPending(true);
     setError("");
     try {
-      await api.getRoom(token, code);
+      const res = await api.getRoom(token, code);
+      rememberRoom(res.room);
       navigate(`/room/${code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "加入失败");
@@ -70,6 +73,14 @@ export default function LobbyPage() {
       </header>
 
       <main className="mx-auto mt-14 max-w-5xl animate-fadeUp">
+        {!window.isSecureContext ? (
+          <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+            当前不是安全上下文，麦克风不可用。请改用{" "}
+            <a className="underline" href="https://hez.zhutairo.top">
+              https://hez.zhutairo.top
+            </a>
+          </div>
+        ) : null}
         <h1 className="font-display text-4xl font-semibold tracking-tight text-sand-50 md:text-5xl">
           开始一场通话
         </h1>

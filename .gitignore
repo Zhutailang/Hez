@@ -5,6 +5,8 @@ build/
 .env.local
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 .DS_Store
 Thumbs.db
 coverage/
@@ -14,3 +16,19 @@ coverage/
 apps/server/data/
 apps/web/dist/
 *.tsbuildinfo
+apps/server/.env.cloud
+
+# Cloud ops scripts that embed host credentials — keep local only
+scripts/ssh_probe.py
+scripts/deploy_cloud.py
+scripts/deploy_cloud_continue.py
+scripts/deploy_cloud_finish.py
+scripts/diag_hez_api.py
+scripts/enable_https.py
+scripts/fix_domain_cors.py
+scripts/fix_domain_now.py
+scripts/sync_web_https_hints.py
+
+# Large / local LiveKit binary
+tools/livekit/*.exe
+tools/livekit/livekit-server

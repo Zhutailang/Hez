@@ -7,21 +7,61 @@ import { z } from "zod";
 import { db } from "./db.js";
 import { requireAuth, signToken, type AuthedRequest } from "./auth.js";
 import { LIVEKIT_URL, createRoomToken } from "./livekit.js";
+import { DEMO_ACCOUNTS, seedDemoDatabase } from "./seedDemo.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
+const DEMO_MODE = process.env.HEZ_DEMO === "1";
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+const corsOrigins = CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
 
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: (origin, cb) => {
+      if (!origin || corsOrigins.includes(origin) || corsOrigins.includes("*")) {
+        cb(null, true);
+        return;
+      }
+      // Production domain
+      if (/^https?:\/\/([a-z0-9-]+\.)*zhutairo\.top(?::\d+)?$/i.test(origin)) {
+        cb(null, true);
+        return;
+      }
+      // Local / LAN / direct IP access
+      if (
+        /^http:\/\/(localhost|127\.0\.0\.1|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/.test(origin)
+      ) {
+        cb(null, true);
+        return;
+      }
+      console.warn("CORS blocked:", origin);
+      cb(null, false);
+    },
     credentials: true,
   }),
 );
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "hez" });
+  res.json({ ok: true, service: "hez", demo: DEMO_MODE });
+});
+
+app.get("/api/runtime", (_req, res) => {
+  const lanIp = process.env.HEZ_LAN_IP || "";
+  res.json({
+    lanIp,
+    livekitUrl: LIVEKIT_URL,
+    demo: DEMO_MODE,
+    // Page must stay on localhost for getUserMedia (secure context).
+    preferredOrigin: "http://localhost:5173",
+    demoAccounts: DEMO_MODE
+      ? DEMO_ACCOUNTS.map(({ username, displayName, password }) => ({
+          username,
+          displayName,
+          password,
+        }))
+      : [],
+  });
 });
 
 const registerSchema = z.object({
@@ -180,7 +220,19 @@ app.post("/api/rooms/:code/token", requireAuth, async (req: AuthedRequest, res) 
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[hez] API listening on http://localhost:${PORT}`);
-  console.log(`[hez] LiveKit URL: ${LIVEKIT_URL}`);
-});
+async function boot() {
+  if (DEMO_MODE) {
+    await seedDemoDatabase(process.env.HEZ_DEMO_RESET === "1");
+    console.log("[hez] DEMO MODE — fake SQLite seeded (alice/bob/carol · demo123)");
+  }
+
+  app.listen(PORT, () => {
+    console.log(`[hez] API listening on http://localhost:${PORT}`);
+    console.log(`[hez] LiveKit URL: ${LIVEKIT_URL}`);
+    if (DEMO_MODE) {
+      console.log(`[hez] Demo DB: ${process.env.DATABASE_PATH || "./data/hez.db"}`);
+    }
+  });
+}
+
+void boot();

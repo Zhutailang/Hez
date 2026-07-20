@@ -1,11 +1,17 @@
+# Docker LiveKit is optional and NOT recommended on Windows Docker Desktop
+# (UDP/WebRTC is unreliable; port 7880 also conflicts with `npm run livekit`).
+#
+# Use native server instead:
+#   npm run livekit
+#
+# Only start this compose file on Linux/macOS, after stopping native livekit-server.
 services:
   livekit:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit.yaml
+    profiles: ["docker-livekit"]
+    command: --dev --bind 0.0.0.0
     ports:
       - "7880:7880"
       - "7881:7881"
-      - "50000-50100:50000-50100/udp"
-    volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - "7882:7882/udp"
     restart: unless-stopped

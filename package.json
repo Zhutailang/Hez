@@ -9,6 +9,9 @@
   "scripts": {
     "dev:server": "npm run dev --workspace=@hez/server",
     "dev:web": "npm run dev --workspace=@hez/web",
+    "demo:server": "npm run demo --workspace=@hez/server",
+    "demo": "powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1",
+    "livekit": "powershell -ExecutionPolicy Bypass -File scripts/start-livekit.ps1",
     "build": "npm run build --workspace=@hez/server && npm run build --workspace=@hez/web",
     "start:server": "npm run start --workspace=@hez/server"
   },

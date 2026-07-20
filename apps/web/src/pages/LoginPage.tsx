@@ -1,8 +1,10 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
 import WaveField from "../components/WaveField";
+
+type DemoAccount = { username: string; displayName: string; password: string };
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -11,6 +13,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
+
+  useEffect(() => {
+    fetch("/api/runtime")
+      .then((r) => r.json())
+      .then((data: { demo?: boolean; demoAccounts?: DemoAccount[] }) => {
+        if (data.demo && data.demoAccounts?.length) {
+          setDemoAccounts(data.demoAccounts);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -28,6 +42,11 @@ export default function LoginPage() {
     }
   }
 
+  function fillDemo(account: DemoAccount) {
+    setUsername(account.username);
+    setPassword(account.password);
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <WaveField />
@@ -41,6 +60,12 @@ export default function LoginPage() {
             <p className="mt-5 max-w-md text-lg leading-relaxed text-sand-100/70">
               Hez 是多端实时语音通话。注册登录后创建房间，邀请同伴即刻接通。
             </p>
+            <p className="mt-6 text-sm text-sand-100/45">
+              本地 UI 预览：{" "}
+              <Link className="text-pulse-300 hover:underline" to="/lab">
+                打开 Lab 假数据页
+              </Link>
+            </p>
           </section>
 
           <form
@@ -50,6 +75,27 @@ export default function LoginPage() {
           >
             <h2 className="font-display text-2xl text-sand-50">登录</h2>
             <p className="mt-2 text-sm text-sand-100/55">进入你的语音空间</p>
+
+            {demoAccounts.length > 0 ? (
+              <div className="mt-5 rounded-2xl border border-pulse-400/25 bg-pulse-500/10 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-pulse-300/80">Demo 假账号</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {demoAccounts.map((account) => (
+                    <button
+                      key={account.username}
+                      type="button"
+                      onClick={() => fillDemo(account)}
+                      className="rounded-lg border border-white/10 bg-ink-950/50 px-2.5 py-1 text-xs text-sand-100/80 transition hover:border-pulse-400/40"
+                    >
+                      {account.username}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-sand-100/45">
+                  密码均为 demo123 · 房间 DEMO01 / DEMO02 / LAB777
+                </p>
+              </div>
+            ) : null}
 
             <label className="mt-8 block text-sm text-sand-100/70">
               用户名
