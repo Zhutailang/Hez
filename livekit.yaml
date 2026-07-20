@@ -5,7 +5,7 @@ rtc:
   tcp_port: 7881
   udp_port: 7882
   use_external_ip: false
-  node_ip: 10.10.235.168
+  node_ip: 192.168.31.131
   enable_loopback_candidate: true
   stun_servers: []
 keys:

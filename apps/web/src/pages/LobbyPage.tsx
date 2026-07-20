@@ -76,9 +76,10 @@ export default function LobbyPage() {
         {!window.isSecureContext ? (
           <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
             当前不是安全上下文，麦克风不可用。请改用{" "}
-            <a className="underline" href="https://hez.zhutairo.top">
-              https://hez.zhutairo.top
+            <a className="underline" href="https://1.94.102.147">
+              https://1.94.102.147
             </a>
+            （自签证书需点继续），或本地 http://localhost:5173
           </div>
         ) : null}
         <h1 className="font-display text-4xl font-semibold tracking-tight text-sand-50 md:text-5xl">

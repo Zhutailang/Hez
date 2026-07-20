@@ -70,7 +70,7 @@ function explainError(err: unknown): { title: string; hint: string } {
   ) {
     return {
       title: "当前页面无法使用麦克风 API",
-      hint: "请用系统 Chrome/Edge 打开 https://hez.zhutairo.top（必须 HTTPS）。不要用 http 或内置预览。",
+      hint: "请用系统 Chrome/Edge 打开 https://1.94.102.147（自签证书点继续），或本地 http://localhost:5173。不要用内置预览。",
     };
   }
 
@@ -118,13 +118,13 @@ function explainError(err: unknown): { title: string; hint: string } {
   ) {
     return {
       title: message,
-      hint: "WebRTC 媒体失败。请确认 LiveKit 正常，并用 https://hez.zhutairo.top 打开。",
+      hint: "WebRTC 媒体失败。请确认 LiveKit 正常，并用 https://1.94.102.147 打开。",
     };
   }
 
   return {
     title: message || "无法进入房间",
-    hint: "请确认服务都在运行，并用 https://hez.zhutairo.top 重试。",
+    hint: "请确认服务都在运行，并用 https://1.94.102.147 重试。",
   };
 }
 

@@ -22,11 +22,6 @@ app.use(
         cb(null, true);
         return;
       }
-      // Production domain
-      if (/^https?:\/\/([a-z0-9-]+\.)*zhutairo\.top(?::\d+)?$/i.test(origin)) {
-        cb(null, true);
-        return;
-      }
       // Local / LAN / direct IP access
       if (
         /^http:\/\/(localhost|127\.0\.0\.1|\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/.test(origin)
