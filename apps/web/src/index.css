@@ -29,3 +29,32 @@ body {
 ::selection {
   background: rgba(61, 214, 184, 0.35);
 }
+
+/* Visible thin scrollbars for side panels */
+.hez-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(61, 214, 184, 0.45) rgba(255, 255, 255, 0.06);
+}
+
+.hez-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hez-scroll::-webkit-scrollbar-track {
+  margin: 6px 0;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.hez-scroll::-webkit-scrollbar-thumb {
+  background: rgba(61, 214, 184, 0.4);
+  border-radius: 999px;
+}
+
+.hez-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(61, 214, 184, 0.65);
+}
+

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import BrandMark from "../components/BrandMark";
+import PeerField from "../components/PeerField";
 
 type Peer = {
   identity: string;
@@ -199,13 +200,13 @@ export default function LabPage() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto mt-5 grid max-w-[1400px] gap-4 lg:grid-cols-[240px_minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-stretch">
-        <aside className="flex max-h-[78vh] flex-col overflow-hidden rounded-[24px] border border-white/10 bg-ink-900/50 backdrop-blur">
-          <div className="border-b border-white/8 px-4 py-4">
+      <main className="relative z-10 mx-auto mt-5 grid max-w-[1400px] gap-4 lg:grid-cols-[240px_minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
+        <aside className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-ink-900/50 backdrop-blur">
+          <div className="shrink-0 border-b border-white/8 px-4 py-4">
             <h2 className="font-display text-lg text-sand-50">历史房间</h2>
             <p className="mt-1 text-xs text-sand-100/45">本地假列表</p>
           </div>
-          <ul className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
+          <ul className="hez-scroll min-h-0 flex-1 space-y-1 px-2 py-3">
             {history.map((item) => {
               const active = item.code === activeCode;
               return (
@@ -257,7 +258,7 @@ export default function LabPage() {
           </ul>
         </aside>
 
-        <section className="flex min-h-[70vh] flex-col rounded-[28px] border border-white/10 bg-ink-900/45 p-5 backdrop-blur md:p-7">
+        <section className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col rounded-[28px] border border-white/10 bg-ink-900/45 p-5 backdrop-blur md:p-7">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.22em] text-pulse-300/80">{status}</p>
@@ -275,45 +276,13 @@ export default function LabPage() {
           </div>
 
           <div className="relative mt-8 flex flex-1 items-center justify-center">
-            <div className="pointer-events-none absolute h-56 w-56 rounded-full bg-pulse-500/10 blur-3xl md:h-72 md:w-72" />
             {ended ? (
               <div className="relative text-center">
                 <p className="font-display text-2xl text-sand-50">接听已关闭</p>
                 <p className="mt-2 text-sm text-sand-100/50">可重新接听或切换历史房间</p>
               </div>
             ) : (
-              <div className="relative flex max-w-full flex-wrap items-end justify-center pl-4">
-                {peers.map((peer, index) => (
-                  <div
-                    key={peer.identity}
-                    className="relative -ml-4 first:ml-0"
-                    style={{ zIndex: peers.length - index }}
-                  >
-                    <div
-                      className={`relative grid h-[72px] w-[72px] place-items-center rounded-full bg-gradient-to-br text-xl font-semibold text-ink-950 shadow-[0_10px_30px_rgba(0,0,0,0.35)] ring-2 transition md:h-20 md:w-20 ${
-                        peer.isSpeaking && !peer.isMuted
-                          ? "scale-110 ring-pulse-300 shadow-glow"
-                          : "ring-white/20"
-                      } ${colorFor(peer.identity)}`}
-                    >
-                      {initialOf(peer.name)}
-                      {peer.isMuted ? (
-                        <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-ink-950 text-[10px] text-sand-100 ring-2 ring-ink-900">
-                          静
-                        </span>
-                      ) : null}
-                      {peer.isLocal ? (
-                        <span className="absolute -left-1 -top-1 rounded-full bg-pulse-400 px-1.5 py-0.5 text-[10px] font-bold text-ink-950">
-                          我
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-2 max-w-[72px] truncate text-center text-xs text-sand-100/70 md:max-w-20">
-                      {peer.name}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <PeerField peers={peers} localDeafened={deafened} />
             )}
           </div>
 
@@ -366,8 +335,8 @@ export default function LabPage() {
           </div>
         </section>
 
-        <section className="flex min-h-[70vh] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0a1520]/90 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
+        <section className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0a1520]/90 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/8 px-5 py-4">
             <div>
               <h2 className="font-display text-xl text-sand-50">群聊</h2>
               <p className="mt-1 text-xs text-sand-100/45">假消息 · 本地回显</p>
@@ -377,7 +346,7 @@ export default function LabPage() {
             </span>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
+          <div className="hez-scroll min-h-0 flex-1 space-y-4 px-4 py-5">
             {messages.map((msg) => {
               if (msg.identity === "system") {
                 return (
@@ -420,7 +389,7 @@ export default function LabPage() {
 
           <form
             onSubmit={sendChat}
-            className="border-t border-white/8 bg-[#071018]/80 px-4 py-3 backdrop-blur"
+            className="shrink-0 border-t border-white/8 bg-[#071018]/80 px-4 py-3 backdrop-blur"
           >
             <div className="flex items-end gap-2">
               <textarea
