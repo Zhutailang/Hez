@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { clearRoomChat, loadRoomChat, saveRoomChat } from "../chatHistory";
 import BrandMark from "../components/BrandMark";
 import PeerField from "../components/PeerField";
 
@@ -48,6 +49,49 @@ const FAKE_PEERS: Peer[] = [
   { identity: "carol", name: "Carol", isSpeaking: false, isMuted: false, isLocal: false },
 ];
 
+/** Isolate Lab chat keys from real RoomPage history. */
+function labChatKey(code: string) {
+  return `LAB:${code.toUpperCase()}`;
+}
+
+function seedMessages(roomName: string): ChatMessage[] {
+  const now = Date.now();
+  return [
+    {
+      id: "sys-1",
+      identity: "system",
+      name: "系统",
+      text: `这是本地 Lab「${roomName}」· 不连 LiveKit`,
+      at: now - 60_000,
+      isLocal: false,
+    },
+    {
+      id: "1",
+      identity: "alice",
+      name: "Alice",
+      text: "先看一下气泡和历史侧栏布局",
+      at: now - 40_000,
+      isLocal: false,
+    },
+    {
+      id: "2",
+      identity: "me",
+      name: "你",
+      text: "关闭接听 / 听筒也能点",
+      at: now - 20_000,
+      isLocal: true,
+    },
+  ];
+}
+
+function loadLabChat(code: string, roomName: string): ChatMessage[] {
+  const existing = loadRoomChat(labChatKey(code));
+  if (existing.length > 0) return existing;
+  const seeded = seedMessages(roomName);
+  saveRoomChat(labChatKey(code), seeded);
+  return seeded;
+}
+
 function colorFor(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i += 1) hash = (hash + id.charCodeAt(i) * (i + 1)) % 997;
@@ -61,7 +105,7 @@ function initialOf(name: string) {
 
 /**
  * UI-only local lab: no LiveKit / API required.
- * Use this to verify layout, hang-up, history sidebar, and chat chrome.
+ * Default canvas for UI changes — keep in sync with RoomPage, then promote.
  */
 export default function LabPage() {
   const [status, setStatus] = useState("通话中（模拟）");
@@ -71,34 +115,16 @@ export default function LabPage() {
   const [ended, setEnded] = useState(false);
   const [activeCode, setActiveCode] = useState("DEMO01");
   const [history, setHistory] = useState(FAKE_HISTORY);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "sys-1",
-      identity: "system",
-      name: "系统",
-      text: "这是本地 Lab 假数据页，不连 LiveKit",
-      at: Date.now() - 60_000,
-      isLocal: false,
-    },
-    {
-      id: "1",
-      identity: "alice",
-      name: "Alice",
-      text: "先看一下气泡和历史侧栏布局",
-      at: Date.now() - 40_000,
-      isLocal: false,
-    },
-    {
-      id: "2",
-      identity: "me",
-      name: "你",
-      text: "关闭接听 / 听筒也能点",
-      at: Date.now() - 20_000,
-      isLocal: true,
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      return loadLabChat("DEMO01", "午后闲聊");
+    } catch {
+      return seedMessages("午后闲聊");
+    }
+  });
   const [draft, setDraft] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatRoomRef = useRef("DEMO01");
   const speakTimer = useRef<number | null>(null);
 
   const roomName = useMemo(
@@ -106,6 +132,30 @@ export default function LabPage() {
     [history, activeCode],
   );
   const speakingCount = useMemo(() => peers.filter((p) => p.isSpeaking).length, [peers]);
+
+  // Per-room independent local chat (same behavior as RoomPage)
+  useEffect(() => {
+    chatRoomRef.current = activeCode;
+    const name =
+      history.find((r) => r.code === activeCode)?.name ||
+      FAKE_HISTORY.find((r) => r.code === activeCode)?.name ||
+      activeCode;
+    try {
+      setMessages(loadLabChat(activeCode, name));
+    } catch {
+      setMessages(seedMessages(name));
+    }
+    setDraft("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reload when room code changes
+  }, [activeCode]);
+
+  useEffect(() => {
+    try {
+      saveRoomChat(labChatKey(chatRoomRef.current), messages);
+    } catch {
+      // ignore persistence errors
+    }
+  }, [messages]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -126,12 +176,31 @@ export default function LabPage() {
     };
   }, [ended]);
 
+  function switchRoom(code: string) {
+    if (code === activeCode && !ended) return;
+    setActiveCode(code);
+    setEnded(false);
+    setStatus("通话中（模拟）");
+    setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
+  }
+
+  function forgetRoom(code: string) {
+    clearRoomChat(labChatKey(code));
+    setHistory((prev) => {
+      const next = prev.filter((r) => r.code !== code);
+      if (code === activeCode && next.length > 0) {
+        setActiveCode(next[0].code);
+      }
+      return next;
+    });
+  }
+
   function hangUp() {
     setEnded(true);
     setStatus("已关闭接听（模拟）");
     setPeers([]);
     setMessages((prev) => [
-      ...prev,
+      ...prev.slice(-299),
       {
         id: `sys-end-${Date.now()}`,
         identity: "system",
@@ -146,20 +215,28 @@ export default function LabPage() {
   function rejoin() {
     setEnded(false);
     setStatus("通话中（模拟）");
-    setPeers(
-      FAKE_PEERS.map((p) =>
-        p.isLocal ? { ...p, isMuted: muted } : p,
-      ),
-    );
+    setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
+    setMessages((prev) => [
+      ...prev.slice(-299),
+      {
+        id: `sys-rejoin-${Date.now()}`,
+        identity: "system",
+        name: "系统",
+        text: `你已重新进入「${roomName}」`,
+        at: Date.now(),
+        isLocal: false,
+      },
+    ]);
   }
 
   function sendChat(e: FormEvent) {
     e.preventDefault();
     if (!draft.trim() || ended) return;
     const text = draft.trim();
+    const roomAtSend = activeCode;
     setDraft("");
     setMessages((prev) => [
-      ...prev,
+      ...prev.slice(-299),
       {
         id: `local-${Date.now()}`,
         identity: "me",
@@ -170,8 +247,9 @@ export default function LabPage() {
       },
     ]);
     window.setTimeout(() => {
+      if (chatRoomRef.current !== roomAtSend) return;
       setMessages((prev) => [
-        ...prev,
+        ...prev.slice(-299),
         {
           id: `bot-${Date.now()}`,
           identity: "alice",
@@ -192,7 +270,7 @@ export default function LabPage() {
         <BrandMark />
         <div className="flex items-center gap-4 text-sm">
           <span className="rounded-full bg-amber-400/15 px-3 py-1 text-xs text-amber-200">
-            LAB · 假数据
+            LAB · 默认改这里
           </span>
           <Link to="/login" className="text-sand-100/60 hover:text-pulse-300">
             去登录
@@ -204,57 +282,45 @@ export default function LabPage() {
         <aside className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-ink-900/50 backdrop-blur">
           <div className="shrink-0 border-b border-white/8 px-4 py-4">
             <h2 className="font-display text-lg text-sand-50">历史房间</h2>
-            <p className="mt-1 text-xs text-sand-100/45">本地假列表</p>
+            <p className="mt-1 text-xs text-sand-100/45">点击切换 · 各房聊天独立</p>
           </div>
           <ul className="hez-scroll min-h-0 flex-1 space-y-1 px-2 py-3">
-            {history.map((item) => {
-              const active = item.code === activeCode;
-              return (
-                <li key={item.code}>
-                  <div
-                    className={`group flex w-full items-start gap-2 rounded-2xl px-3 py-2.5 ${
-                      active ? "bg-pulse-500/15 ring-1 ring-pulse-400/35" : "hover:bg-white/5"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveCode(item.code);
-                        setEnded(false);
-                        setStatus("通话中（模拟）");
-                        setPeers(FAKE_PEERS);
-                        setMessages((prev) => [
-                          ...prev,
-                          {
-                            id: `sys-sw-${Date.now()}`,
-                            identity: "system",
-                            name: "系统",
-                            text: `已切换到「${item.name}」`,
-                            at: Date.now(),
-                            isLocal: false,
-                          },
-                        ]);
-                      }}
-                      className="min-w-0 flex-1 text-left"
+            {history.length === 0 ? (
+              <li className="px-3 py-6 text-center text-sm text-sand-100/40">暂无历史房间</li>
+            ) : (
+              history.map((item) => {
+                const active = item.code === activeCode;
+                return (
+                  <li key={item.code}>
+                    <div
+                      className={`group flex w-full items-start gap-2 rounded-2xl px-3 py-2.5 ${
+                        active ? "bg-pulse-500/15 ring-1 ring-pulse-400/35" : "hover:bg-white/5"
+                      }`}
                     >
-                      <div className="truncate text-sm font-medium text-sand-50">{item.name}</div>
-                      <div className="mt-0.5 font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
-                        {item.code}
-                      </div>
-                      <div className="mt-1 truncate text-[11px] text-sand-100/40">{item.hostName}</div>
-                    </button>
-                    <button
-                      type="button"
-                      title="移除"
-                      onClick={() => setHistory((prev) => prev.filter((r) => r.code !== item.code))}
-                      className="mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-sand-100/25 opacity-0 transition hover:bg-white/10 hover:text-sand-100/70 group-hover:opacity-100"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
+                      <button
+                        type="button"
+                        onClick={() => switchRoom(item.code)}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="truncate text-sm font-medium text-sand-50">{item.name}</div>
+                        <div className="mt-0.5 font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
+                          {item.code}
+                        </div>
+                        <div className="mt-1 truncate text-[11px] text-sand-100/40">{item.hostName}</div>
+                      </button>
+                      <button
+                        type="button"
+                        title="移除"
+                        onClick={() => forgetRoom(item.code)}
+                        className="mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-sand-100/25 opacity-0 transition hover:bg-white/10 hover:text-sand-100/70 group-hover:opacity-100"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </aside>
 
@@ -271,8 +337,11 @@ export default function LabPage() {
           </div>
 
           <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-950/20 px-4 py-3 text-sm text-amber-100/80">
-            纯前端 Lab：不请求 API、不连 LiveKit。真实联调请用{" "}
-            <code className="text-amber-200">npm run demo</code> + 登录 alice / demo123。
+            UI 默认在 Lab 改。确认后再同步到{" "}
+            <code className="text-amber-200">RoomPage</code>。打开{" "}
+            <Link className="underline" to="/lab">
+              /lab
+            </Link>
           </div>
 
           <div className="relative mt-8 flex flex-1 items-center justify-center">
@@ -339,7 +408,7 @@ export default function LabPage() {
           <div className="flex shrink-0 items-center justify-between border-b border-white/8 px-5 py-4">
             <div>
               <h2 className="font-display text-xl text-sand-50">群聊</h2>
-              <p className="mt-1 text-xs text-sand-100/45">假消息 · 本地回显</p>
+              <p className="mt-1 text-xs text-sand-100/45">本房间本地记录 · 切换互不干扰</p>
             </div>
             <span className="rounded-full bg-pulse-500/15 px-3 py-1 text-xs text-pulse-300">
               {ended ? "已离线" : `${peers.length} 在线`}

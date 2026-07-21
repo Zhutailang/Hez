@@ -3,6 +3,7 @@ import {
   RoomEvent,
   Track,
   type Participant,
+  type RemoteAudioTrack,
   type RemoteParticipant,
 } from "livekit-client";
 import { FormEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -11,6 +12,7 @@ import { api, type Room as ApiRoom } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
 import PeerField from "../components/PeerField";
+import { loadRoomChat, saveRoomChat } from "../chatHistory";
 import {
   getRoomHistory,
   rememberRoom,
@@ -158,16 +160,35 @@ export default function RoomPage() {
   const [ended, setEnded] = useState(false);
   const [error, setError] = useState<{ title: string; hint: string } | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    code ? loadRoomChat(code) : [],
+  );
   const [draft, setDraft] = useState("");
   const [history, setHistory] = useState<HistoryRoom[]>(() => getRoomHistory());
   const roomRef = useRef<Room | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const audioHostRef = useRef<HTMLDivElement | null>(null);
   const endingRef = useRef(false);
   const deafenedRef = useRef(false);
+  const chatRoomRef = useRef(code.toUpperCase());
+  const [audioBlocked, setAudioBlocked] = useState(false);
 
   const speakingCount = useMemo(() => peers.filter((p) => p.isSpeaking).length, [peers]);
   const activeCode = code.toUpperCase();
+
+  // Switch room → load that room's local chat (independent history)
+  useEffect(() => {
+    chatRoomRef.current = activeCode;
+    setMessages(loadRoomChat(activeCode));
+    setDraft("");
+  }, [activeCode]);
+
+  // Persist whenever messages change, keyed by the room they belong to
+  useEffect(() => {
+    const roomCode = chatRoomRef.current;
+    if (!roomCode) return;
+    saveRoomChat(roomCode, messages);
+  }, [messages]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -204,15 +225,59 @@ export default function RoomPage() {
     };
 
     const pushChat = (msg: ChatMessage) => {
-      setMessages((prev) => [...prev.slice(-200), msg]);
+      setMessages((prev) => {
+        // Ignore late packets from a previous room after switch
+        if (chatRoomRef.current !== code.toUpperCase()) return prev;
+        return [...prev.slice(-299), msg];
+      });
+    };
+
+    const attachRemoteAudio = (track: RemoteAudioTrack) => {
+      const host = audioHostRef.current;
+      if (!host) return;
+      // Avoid duplicate <audio> for the same track sid
+      const sid = track.sid || track.mediaStreamTrack?.id || "";
+      if (sid && host.querySelector(`[data-lk-sid="${sid}"]`)) return;
+
+      const el = track.attach() as HTMLAudioElement;
+      el.autoplay = true;
+      el.setAttribute("playsinline", "true");
+      if (sid) el.dataset.lkSid = sid;
+      el.style.display = "none";
+      host.appendChild(el);
+      track.setVolume(deafenedRef.current ? 0 : 1);
+      void el.play().catch(() => {
+        setAudioBlocked(true);
+      });
+    };
+
+    const detachRemoteAudio = (track: RemoteAudioTrack) => {
+      track.detach().forEach((el) => el.remove());
+    };
+
+    const attachAllRemoteAudio = (lkRoom: Room) => {
+      lkRoom.remoteParticipants.forEach((p) => {
+        p.audioTrackPublications.forEach((pub) => {
+          if (pub.track && pub.track.kind === Track.Kind.Audio) {
+            attachRemoteAudio(pub.track as RemoteAudioTrack);
+          }
+        });
+      });
+    };
+
+    const unlockAudio = async (lkRoom: Room) => {
+      try {
+        await lkRoom.startAudio();
+        setAudioBlocked(false);
+      } catch {
+        setAudioBlocked(true);
+      }
     };
 
     const setRemoteAudioEnabled = (lkRoom: Room, enabled: boolean) => {
+      const volume = enabled ? 1 : 0;
       lkRoom.remoteParticipants.forEach((p) => {
-        p.audioTrackPublications.forEach((pub) => {
-          const track = pub.track;
-          if (track) track.setVolume(enabled ? 1 : 0);
-        });
+        p.setVolume(volume);
       });
     };
 
@@ -222,10 +287,11 @@ export default function RoomPage() {
         setEnded(false);
         setDeafened(false);
         deafenedRef.current = false;
-        setMessages([]);
+        setAudioBlocked(false);
         setPeers([]);
         setRoom(null);
         setStatus("正在连接…");
+        // Keep this room's local chat; do not wipe on reconnect
 
         if (!window.isSecureContext || !navigator.mediaDevices) {
           throw new Error("Cannot read properties of undefined (reading 'getUserMedia')");
@@ -261,8 +327,17 @@ export default function RoomPage() {
         lkRoom.on(RoomEvent.TrackSubscribed, (track) => {
           refresh();
           if (track.kind === Track.Kind.Audio && !endingRef.current) {
-            track.setVolume(deafenedRef.current ? 0 : 1);
+            attachRemoteAudio(track as RemoteAudioTrack);
           }
+        });
+        lkRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
+          refresh();
+          if (track.kind === Track.Kind.Audio) {
+            detachRemoteAudio(track as RemoteAudioTrack);
+          }
+        });
+        lkRoom.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          setAudioBlocked(!lkRoom.canPlaybackAudio);
         });
         lkRoom.on(
           RoomEvent.DataReceived,
@@ -301,7 +376,9 @@ export default function RoomPage() {
         setRoom(lkRoom);
         setStatus("通话中");
         syncPeers(lkRoom);
+        attachAllRemoteAudio(lkRoom);
         setRemoteAudioEnabled(lkRoom, true);
+        await unlockAudio(lkRoom);
         pushChat({
           id: `sys-${Date.now()}`,
           identity: "system",
@@ -323,6 +400,8 @@ export default function RoomPage() {
           } else {
             await lkRoom.localParticipant.setMicrophoneEnabled(true);
             setMuted(false);
+            // Mic permission gesture often unlocks remote audio autoplay too
+            await unlockAudio(lkRoom);
             syncPeers(lkRoom);
           }
         } catch (micErr) {
@@ -340,6 +419,7 @@ export default function RoomPage() {
       cancelled = true;
       const current = roomRef.current;
       roomRef.current = null;
+      audioHostRef.current?.replaceChildren();
       current?.disconnect();
     };
     // deafened is applied via toggle, not reconnect
@@ -353,8 +433,31 @@ export default function RoomPage() {
       await room.localParticipant.setMicrophoneEnabled(!next);
       setMuted(next);
       setError(null);
+      if (!next) {
+        try {
+          await room.startAudio();
+          setAudioBlocked(false);
+        } catch {
+          setAudioBlocked(true);
+        }
+      }
     } catch (err) {
       setError(explainError(err));
+    }
+  }
+
+  async function enableSpeakers() {
+    if (!room) return;
+    try {
+      await room.startAudio();
+      setAudioBlocked(false);
+      setError(null);
+    } catch {
+      setAudioBlocked(true);
+      setError({
+        title: "浏览器拦截了声音播放",
+        hint: "请再点一次「开启声音」，或先与页面交互后再试。",
+      });
     }
   }
 
@@ -363,10 +466,9 @@ export default function RoomPage() {
     const next = !deafened;
     deafenedRef.current = next;
     setDeafened(next);
+    const volume = next ? 0 : 1;
     room.remoteParticipants.forEach((p) => {
-      p.audioTrackPublications.forEach((pub) => {
-        pub.track?.setVolume(next ? 0 : 1);
-      });
+      p.setVolume(volume);
     });
   }
 
@@ -385,7 +487,7 @@ export default function RoomPage() {
     setEnded(true);
     setStatus("已关闭接听");
     setMessages((prev) => [
-      ...prev.slice(-200),
+      ...prev.slice(-299),
       {
         id: `sys-end-${Date.now()}`,
         identity: "system",
@@ -415,7 +517,7 @@ export default function RoomPage() {
 
     setDraft("");
     setMessages((prev) => [
-      ...prev.slice(-200),
+      ...prev.slice(-299),
       {
         id: `local-${payload.at}`,
         identity: room.localParticipant.identity,
@@ -459,6 +561,8 @@ export default function RoomPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden px-3 py-5 md:px-6 md:py-6">
+      {/* Hidden host for LiveKit remote <audio> elements */}
+      <div ref={audioHostRef} className="sr-only" aria-hidden />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(61,214,184,0.12),transparent_42%)]" />
 
       <header className="relative z-10 mx-auto flex max-w-[1400px] items-center justify-between px-1">
@@ -541,6 +645,19 @@ export default function RoomPage() {
             </div>
           ) : null}
 
+          {audioBlocked && !ended ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-pulse-400/30 bg-pulse-500/10 px-4 py-3">
+              <p className="text-sm text-sand-50">浏览器拦截了声音，点一下开启扬声器</p>
+              <button
+                type="button"
+                onClick={() => void enableSpeakers()}
+                className="rounded-full bg-pulse-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-pulse-400"
+              >
+                开启声音
+              </button>
+            </div>
+          ) : null}
+
           <div className="relative mt-8 flex flex-1 items-center justify-center">
             {ended ? (
               <div className="relative text-center">
@@ -612,7 +729,7 @@ export default function RoomPage() {
           <div className="flex shrink-0 items-center justify-between border-b border-white/8 px-5 py-4">
             <div>
               <h2 className="font-display text-xl text-sand-50">群聊</h2>
-              <p className="mt-1 text-xs text-sand-100/45">房间消息 · 实时同步</p>
+              <p className="mt-1 text-xs text-sand-100/45">本房间本地记录 · 切换互不干扰</p>
             </div>
             <span className="rounded-full bg-pulse-500/15 px-3 py-1 text-xs text-pulse-300">
               {ended ? "已离线" : `${peers.length} 在线`}

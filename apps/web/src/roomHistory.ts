@@ -1,4 +1,5 @@
 import type { Room } from "./api";
+import { clearRoomChat } from "./chatHistory";
 
 const KEY = "hez.roomHistory";
 const MAX = 30;
@@ -22,7 +23,11 @@ function read(): HistoryRoom[] {
 }
 
 function write(list: HistoryRoom[]) {
-  localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)));
+  } catch {
+    // ignore quota / private mode
+  }
 }
 
 export function getRoomHistory(): HistoryRoom[] {
@@ -42,5 +47,7 @@ export function rememberRoom(room: Pick<Room, "code" | "name"> & { hostName?: st
 }
 
 export function removeHistoryRoom(code: string) {
-  write(read().filter((r) => r.code !== code.toUpperCase()));
+  const upper = code.toUpperCase();
+  write(read().filter((r) => r.code !== upper));
+  clearRoomChat(upper);
 }

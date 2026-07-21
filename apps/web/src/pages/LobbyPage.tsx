@@ -1,24 +1,55 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type Room } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
-import { rememberRoom } from "../roomHistory";
+import {
+  getRoomHistory,
+  rememberRoom,
+  removeHistoryRoom,
+  type HistoryRoom,
+} from "../roomHistory";
+
+function mergeRooms(apiRooms: Room[], local: HistoryRoom[]): HistoryRoom[] {
+  const map = new Map<string, HistoryRoom>();
+  for (const r of local) {
+    map.set(r.code.toUpperCase(), r);
+  }
+  for (const r of apiRooms) {
+    const code = r.code.toUpperCase();
+    const prev = map.get(code);
+    map.set(code, {
+      code,
+      name: r.name,
+      hostName: r.hostName,
+      visitedAt: prev?.visitedAt ?? (r.createdAt ? Date.parse(r.createdAt) : Date.now()),
+    });
+  }
+  return [...map.values()].sort((a, b) => b.visitedAt - a.visitedAt);
+}
 
 export default function LobbyPage() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [apiRooms, setApiRooms] = useState<Room[]>([]);
+  const [localTick, setLocalTick] = useState(0);
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
+  const rooms = useMemo(
+    () => mergeRooms(apiRooms, getRoomHistory()),
+    // localTick forces refresh after remove
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiRooms, localTick],
+  );
+
   useEffect(() => {
     if (!token) return;
     api
       .listRooms(token)
-      .then((res) => setRooms(res.rooms))
+      .then((res) => setApiRooms(res.rooms))
       .catch(() => undefined);
   }, [token]);
 
@@ -56,6 +87,11 @@ export default function LobbyPage() {
     }
   }
 
+  function forget(code: string) {
+    removeHistoryRoom(code);
+    setLocalTick((n) => n + 1);
+  }
+
   return (
     <div className="min-h-screen px-6 py-8 md:px-10">
       <header className="mx-auto flex max-w-5xl items-center justify-between">
@@ -76,10 +112,10 @@ export default function LobbyPage() {
         {!window.isSecureContext ? (
           <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
             当前不是安全上下文，麦克风不可用。请改用{" "}
-            <a className="underline" href="https://1.94.102.147">
-              https://1.94.102.147
+            <a className="underline" href="https://hez.zhutairo.top">
+              https://hez.zhutairo.top
             </a>
-            （自签证书需点继续），或本地 http://localhost:5173
+            ，或本地 http://localhost:5173
           </div>
         ) : null}
         <h1 className="font-display text-4xl font-semibold tracking-tight text-sand-50 md:text-5xl">
@@ -135,26 +171,41 @@ export default function LobbyPage() {
         {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
 
         <section className="mt-12">
-          <h2 className="text-sm uppercase tracking-[0.2em] text-sand-100/45">最近房间</h2>
-          <ul className="mt-4 space-y-3">
+          <div className="flex items-end justify-between gap-3">
+            <h2 className="text-sm uppercase tracking-[0.2em] text-sand-100/45">历史房间</h2>
+            <p className="text-xs text-sand-100/35">本地记录 + 服务端最近房间</p>
+          </div>
+          <ul className="hez-scroll mt-4 max-h-[40vh] space-y-3 overflow-y-auto pr-1">
             {rooms.length === 0 ? (
               <li className="text-sand-100/50">还没有房间，先创建一个吧。</li>
             ) : (
               rooms.map((room) => (
-                <li key={room.id}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/room/${room.code}`)}
-                    className="flex w-full items-center justify-between rounded-2xl border border-white/8 bg-ink-900/40 px-5 py-4 text-left transition hover:border-pulse-400/35"
-                  >
-                    <div>
-                      <div className="font-medium text-sand-50">{room.name}</div>
-                      <div className="mt-1 text-sm text-sand-100/50">
-                        主持 · {room.hostName || "未知"}
+                <li key={room.code}>
+                  <div className="group flex items-stretch gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/room/${room.code}`)}
+                      className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-white/8 bg-ink-900/40 px-5 py-4 text-left transition hover:border-pulse-400/35"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-sand-50">{room.name}</div>
+                        <div className="mt-1 truncate text-sm text-sand-100/50">
+                          {room.hostName ? `主持 · ${room.hostName}` : "历史访问"}
+                        </div>
                       </div>
-                    </div>
-                    <span className="font-mono tracking-[0.2em] text-pulse-300">{room.code}</span>
-                  </button>
+                      <span className="ml-3 shrink-0 font-mono tracking-[0.2em] text-pulse-300">
+                        {room.code}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      title="从本地历史移除"
+                      onClick={() => forget(room.code)}
+                      className="rounded-2xl border border-white/8 px-3 text-sand-100/30 transition hover:border-white/20 hover:text-sand-100/70"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </li>
               ))
             )}

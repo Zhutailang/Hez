@@ -1,0 +1,26 @@
+---
+description: UI/通话页改动默认先在 Lab（/lab）完成，确认后再同步到正式 RoomPage
+alwaysApply: true
+---
+
+# Lab-first UI workflow
+
+Hez 的通话/群聊/历史房间等 **界面与交互** 默认在 Lab 上改，不要直接先改正式页。
+
+## Default target
+
+1. **先改** `apps/web/src/pages/LabPage.tsx`（路由 `/lab`，假数据，无需 LiveKit/API）
+2. 共用组件优先抽到 `apps/web/src/components/`（如 `PeerField`、`StatusIcons`），Lab 与正式页一起用
+3. Lab 验证通过后，再同步到 `apps/web/src/pages/RoomPage.tsx`（及必要时 `LobbyPage.tsx`）
+4. 涉及真实语音/信令/鉴权的逻辑只放在 RoomPage / server；Lab 用模拟状态即可
+
+## Do / Don't
+
+- ✅ 布局、气泡、侧栏、群聊、角标、滚动、本地历史消息 → 先 Lab
+- ✅ 改完 Lab 后简要说明还需同步到 RoomPage 的点（若本次未同步）
+- ❌ 不要只改 RoomPage 而让 Lab 落后
+- ❌ 不要在 Lab 里接入真实 LiveKit（保持纯前端假数据）
+
+## Verify
+
+本地：`npm run dev:web` → 打开 http://localhost:5173/lab
