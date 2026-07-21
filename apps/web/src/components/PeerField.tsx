@@ -76,7 +76,7 @@ function clamp(xPx: number, yPx: number, size: number) {
   const half = size / 2 + 10;
   return {
     xPx: Math.min(FIELD_W - half, Math.max(half, xPx)),
-    yPx: Math.min(FIELD_H - half - 16, Math.max(half, yPx)),
+    yPx: Math.min(FIELD_H - half - 36, Math.max(half, yPx)),
   };
 }
 
@@ -224,6 +224,9 @@ type Props = {
   peers: FieldPeer[];
   localDeafened?: boolean;
   emptyText?: string;
+  /** Per-remote-peer output volume 0–100. Local peer is ignored. */
+  volumes?: Record<string, number>;
+  onVolumeChange?: (identity: string, volume: number) => void;
 };
 
 /** Center-radial peer field: 1 in middle, more split outward like cell division. */
@@ -231,6 +234,8 @@ export default function PeerField({
   peers,
   localDeafened = false,
   emptyText = "等待成员加入…",
+  volumes,
+  onVolumeChange,
 }: Props) {
   // Recompute only when membership (ids) change — speaking/mute shouldn't reshuffle
   const memberKey = peers
@@ -246,14 +251,14 @@ export default function PeerField({
 
   if (peers.length === 0) {
     return (
-      <div className="relative flex min-h-[300px] w-full flex-1 items-center justify-center md:min-h-[360px]">
+      <div className="relative flex min-h-[340px] w-full flex-1 items-center justify-center md:min-h-[400px]">
         <p className="text-sand-100/45">{emptyText}</p>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[300px] w-full flex-1 md:min-h-[360px]">
+    <div className="relative min-h-[340px] w-full flex-1 md:min-h-[400px]">
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pulse-500/10 blur-3xl md:h-80 md:w-80" />
       {/* Soft radial guide rings */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[42%] w-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.04]" />
@@ -303,6 +308,28 @@ export default function PeerField({
             >
               {peer.name}
             </p>
+            {!peer.isLocal && onVolumeChange ? (
+              <div
+                className="mt-1.5 flex flex-col items-center gap-0.5"
+                style={{ transform: `rotate(${-layout.rotate}deg)` }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={volumes?.[peer.identity] ?? 100}
+                  onChange={(e) => onVolumeChange(peer.identity, Number(e.target.value))}
+                  className="hez-volume hez-volume-sm"
+                  aria-label={`${peer.name} 音量`}
+                  title={`音量 ${volumes?.[peer.identity] ?? 100}`}
+                />
+                <span className="text-[10px] tabular-nums text-sand-100/45">
+                  {volumes?.[peer.identity] ?? 100}
+                </span>
+              </div>
+            ) : null}
           </div>
         );
       })}

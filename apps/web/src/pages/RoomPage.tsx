@@ -2,6 +2,7 @@ import {
   Room,
   RoomEvent,
   Track,
+  type LocalAudioTrack,
   type Participant,
   type RemoteAudioTrack,
   type RemoteParticipant,
@@ -11,6 +12,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type Room as ApiRoom } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
+import CallAudioControls from "../components/CallAudioControls";
 import PeerField from "../components/PeerField";
 import { loadRoomChat, saveRoomChat } from "../chatHistory";
 import {
@@ -19,6 +21,7 @@ import {
   removeHistoryRoom,
   type HistoryRoom,
 } from "../roomHistory";
+import { playJoinSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
 
 type Peer = {
   identity: string;
@@ -107,7 +110,7 @@ function explainError(err: unknown): { title: string; hint: string } {
   ) {
     return {
       title: message,
-      hint: "无法连上 LiveKit 信令。请确认已运行 npm run livekit。",
+      hint: "无法连上 LiveKit 信令。请确认用 https://1.94.102.147 打开，并允许自签证书后重试。",
     };
   }
 
@@ -157,6 +160,8 @@ export default function RoomPage() {
   const [peers, setPeers] = useState<Peer[]>([]);
   const [muted, setMuted] = useState(false);
   const [deafened, setDeafened] = useState(false);
+  const [peerVolumes, setPeerVolumes] = useState<Record<string, number>>({});
+  const [noiseReduction, setNoiseReduction] = useState(true);
   const [ended, setEnded] = useState(false);
   const [error, setError] = useState<{ title: string; hint: string } | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
@@ -170,6 +175,8 @@ export default function RoomPage() {
   const audioHostRef = useRef<HTMLDivElement | null>(null);
   const endingRef = useRef(false);
   const deafenedRef = useRef(false);
+  const peerVolumesRef = useRef<Record<string, number>>({});
+  const noiseReductionRef = useRef(true);
   const chatRoomRef = useRef(code.toUpperCase());
   const [audioBlocked, setAudioBlocked] = useState(false);
 
@@ -232,7 +239,13 @@ export default function RoomPage() {
       });
     };
 
-    const attachRemoteAudio = (track: RemoteAudioTrack) => {
+    const levelFor = (identity: string) => {
+      if (deafenedRef.current) return 0;
+      const pct = peerVolumesRef.current[identity];
+      return (pct ?? 100) / 100;
+    };
+
+    const attachRemoteAudio = (track: RemoteAudioTrack, identity: string) => {
       const host = audioHostRef.current;
       if (!host) return;
       // Avoid duplicate <audio> for the same track sid
@@ -245,7 +258,7 @@ export default function RoomPage() {
       if (sid) el.dataset.lkSid = sid;
       el.style.display = "none";
       host.appendChild(el);
-      track.setVolume(deafenedRef.current ? 0 : 1);
+      track.setVolume(levelFor(identity));
       void el.play().catch(() => {
         setAudioBlocked(true);
       });
@@ -259,7 +272,7 @@ export default function RoomPage() {
       lkRoom.remoteParticipants.forEach((p) => {
         p.audioTrackPublications.forEach((pub) => {
           if (pub.track && pub.track.kind === Track.Kind.Audio) {
-            attachRemoteAudio(pub.track as RemoteAudioTrack);
+            attachRemoteAudio(pub.track as RemoteAudioTrack, p.identity);
           }
         });
       });
@@ -268,18 +281,24 @@ export default function RoomPage() {
     const unlockAudio = async (lkRoom: Room) => {
       try {
         await lkRoom.startAudio();
+        unlockNotifySounds();
         setAudioBlocked(false);
       } catch {
         setAudioBlocked(true);
       }
     };
 
-    const setRemoteAudioEnabled = (lkRoom: Room, enabled: boolean) => {
-      const volume = enabled ? 1 : 0;
+    const applyAllRemoteVolumes = (lkRoom: Room) => {
       lkRoom.remoteParticipants.forEach((p) => {
-        p.setVolume(volume);
+        p.setVolume(levelFor(p.identity));
       });
     };
+
+    const micCaptureOptions = () => ({
+      echoCancellation: true,
+      noiseSuppression: noiseReductionRef.current,
+      autoGainControl: true,
+    });
 
     (async () => {
       try {
@@ -307,27 +326,36 @@ export default function RoomPage() {
         const lkRoom = new Room({
           adaptiveStream: true,
           dynacast: true,
-          audioCaptureDefaults: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          audioCaptureDefaults: micCaptureOptions(),
         });
         roomRef.current = lkRoom;
 
         const refresh = () => {
           if (!cancelled) syncPeers(lkRoom);
         };
-        lkRoom.on(RoomEvent.ParticipantConnected, refresh);
+        lkRoom.on(RoomEvent.ParticipantConnected, (participant) => {
+          refresh();
+          if (!endingRef.current) {
+            playJoinSound();
+            pushChat({
+              id: `sys-join-${Date.now()}`,
+              identity: "system",
+              name: "系统",
+              text: `${participant.name || participant.identity} 进入了语音房间`,
+              at: Date.now(),
+              isLocal: false,
+            });
+          }
+        });
         lkRoom.on(RoomEvent.ParticipantDisconnected, refresh);
         lkRoom.on(RoomEvent.ActiveSpeakersChanged, refresh);
         lkRoom.on(RoomEvent.TrackMuted, refresh);
         lkRoom.on(RoomEvent.TrackUnmuted, refresh);
         lkRoom.on(RoomEvent.LocalTrackPublished, refresh);
-        lkRoom.on(RoomEvent.TrackSubscribed, (track) => {
+        lkRoom.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
           refresh();
           if (track.kind === Track.Kind.Audio && !endingRef.current) {
-            attachRemoteAudio(track as RemoteAudioTrack);
+            attachRemoteAudio(track as RemoteAudioTrack, participant.identity);
           }
         });
         lkRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
@@ -350,6 +378,7 @@ export default function RoomPage() {
                 at?: number;
               };
               if (raw.type !== "chat" || !raw.text?.trim()) return;
+              playMessageSound();
               pushChat({
                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 identity: participant?.identity || "remote",
@@ -377,7 +406,7 @@ export default function RoomPage() {
         setStatus("通话中");
         syncPeers(lkRoom);
         attachAllRemoteAudio(lkRoom);
-        setRemoteAudioEnabled(lkRoom, true);
+        applyAllRemoteVolumes(lkRoom);
         await unlockAudio(lkRoom);
         pushChat({
           id: `sys-${Date.now()}`,
@@ -398,7 +427,7 @@ export default function RoomPage() {
               hint: "已静音进入。检查设备后可点「取消静音」。",
             });
           } else {
-            await lkRoom.localParticipant.setMicrophoneEnabled(true);
+            await lkRoom.localParticipant.setMicrophoneEnabled(true, micCaptureOptions());
             setMuted(false);
             // Mic permission gesture often unlocks remote audio autoplay too
             await unlockAudio(lkRoom);
@@ -428,9 +457,14 @@ export default function RoomPage() {
 
   async function toggleMute() {
     if (!room || ended) return;
+    unlockNotifySounds();
     const next = !muted;
     try {
-      await room.localParticipant.setMicrophoneEnabled(!next);
+      await room.localParticipant.setMicrophoneEnabled(!next, {
+        echoCancellation: true,
+        noiseSuppression: noiseReductionRef.current,
+        autoGainControl: true,
+      });
       setMuted(next);
       setError(null);
       if (!next) {
@@ -446,8 +480,47 @@ export default function RoomPage() {
     }
   }
 
+  async function toggleNoiseReduction() {
+    if (!room || ended) return;
+    const next = !noiseReduction;
+    noiseReductionRef.current = next;
+    setNoiseReduction(next);
+    if (muted) return;
+    try {
+      const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+      const track = pub?.track as LocalAudioTrack | undefined;
+      if (track?.restartTrack) {
+        await track.restartTrack({
+          echoCancellation: true,
+          noiseSuppression: next,
+          autoGainControl: true,
+        });
+      } else {
+        await room.localParticipant.setMicrophoneEnabled(false);
+        await room.localParticipant.setMicrophoneEnabled(true, {
+          echoCancellation: true,
+          noiseSuppression: next,
+          autoGainControl: true,
+        });
+      }
+      setError(null);
+    } catch (err) {
+      setError(explainError(err));
+    }
+  }
+
+  function setPeerVolume(identity: string, value: number) {
+    peerVolumesRef.current = { ...peerVolumesRef.current, [identity]: value };
+    setPeerVolumes(peerVolumesRef.current);
+    if (!room || ended) return;
+    const level = deafenedRef.current ? 0 : value / 100;
+    const participant = room.remoteParticipants.get(identity);
+    participant?.setVolume(level);
+  }
+
   async function enableSpeakers() {
     if (!room) return;
+    unlockNotifySounds();
     try {
       await room.startAudio();
       setAudioBlocked(false);
@@ -463,12 +536,13 @@ export default function RoomPage() {
 
   function toggleDeafen() {
     if (!room || ended) return;
+    unlockNotifySounds();
     const next = !deafened;
     deafenedRef.current = next;
     setDeafened(next);
-    const volume = next ? 0 : 1;
     room.remoteParticipants.forEach((p) => {
-      p.setVolume(volume);
+      const pct = peerVolumesRef.current[p.identity] ?? 100;
+      p.setVolume(next ? 0 : pct / 100);
     });
   }
 
@@ -507,6 +581,7 @@ export default function RoomPage() {
   async function sendChat(e: FormEvent) {
     e.preventDefault();
     if (!room || !draft.trim() || ended) return;
+    unlockNotifySounds();
     const text = draft.trim();
     const payload = {
       type: "chat",
@@ -665,7 +740,12 @@ export default function RoomPage() {
                 <p className="mt-2 text-sm text-sand-100/50">语音通道已断开，可重新接听或切换历史房间</p>
               </div>
             ) : (
-              <PeerField peers={peers} localDeafened={deafened} />
+              <PeerField
+                peers={peers}
+                localDeafened={deafened}
+                volumes={peerVolumes}
+                onVolumeChange={setPeerVolume}
+              />
             )}
           </div>
 
@@ -701,6 +781,11 @@ export default function RoomPage() {
                 >
                   {muted ? "取消静音" : "静音"}
                 </button>
+                <CallAudioControls
+                  noiseReduction={noiseReduction}
+                  onToggleNoise={() => void toggleNoiseReduction()}
+                  disabled={!room}
+                />
                 <button
                   type="button"
                   onClick={toggleDeafen}

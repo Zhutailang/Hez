@@ -1,5 +1,5 @@
-# Cloud / Linux LiveKit config for 1.94.102.147
-port: 7880
+# Cloud LiveKit — signaling on :17880; nginx terminates TLS on 443 (/rtc) and optional :7880
+port: 17880
 bind_addresses:
   - ""
 rtc:

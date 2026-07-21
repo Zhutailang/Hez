@@ -58,3 +58,51 @@ body {
   background: rgba(61, 214, 184, 0.65);
 }
 
+/* Call toolbar volume range */
+.hez-volume {
+  width: 7.5rem;
+  height: 0.35rem;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hez-volume-sm {
+  width: 4.25rem;
+}
+
+.hez-volume:disabled {
+  cursor: not-allowed;
+}
+
+.hez-volume::-webkit-slider-runnable-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hez-volume::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: -0.28rem;
+  border-radius: 999px;
+  border: 0;
+  background: #3dd6b8;
+  box-shadow: 0 0 0 3px rgba(61, 214, 184, 0.2);
+}
+
+.hez-volume::-moz-range-track {
+  height: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.hez-volume::-moz-range-thumb {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  border: 0;
+  background: #3dd6b8;
+}
+

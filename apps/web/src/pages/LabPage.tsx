@@ -2,7 +2,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { clearRoomChat, loadRoomChat, saveRoomChat } from "../chatHistory";
 import BrandMark from "../components/BrandMark";
+import CallAudioControls from "../components/CallAudioControls";
 import PeerField from "../components/PeerField";
+import { playJoinSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
 
 type Peer = {
   identity: string;
@@ -112,6 +114,8 @@ export default function LabPage() {
   const [peers, setPeers] = useState<Peer[]>(FAKE_PEERS);
   const [muted, setMuted] = useState(false);
   const [deafened, setDeafened] = useState(false);
+  const [peerVolumes, setPeerVolumes] = useState<Record<string, number>>({});
+  const [noiseReduction, setNoiseReduction] = useState(true);
   const [ended, setEnded] = useState(false);
   const [activeCode, setActiveCode] = useState("DEMO01");
   const [history, setHistory] = useState(FAKE_HISTORY);
@@ -176,12 +180,33 @@ export default function LabPage() {
     };
   }, [ended]);
 
+  // Lab: periodically simulate a remote member re-entering (cue sound)
+  useEffect(() => {
+    if (ended) return;
+    const id = window.setInterval(() => {
+      playJoinSound();
+      setMessages((prev) => [
+        ...prev.slice(-299),
+        {
+          id: `sys-join-${Date.now()}`,
+          identity: "system",
+          name: "系统",
+          text: "有成员进入语音房间（模拟）",
+          at: Date.now(),
+          isLocal: false,
+        },
+      ]);
+    }, 28_000);
+    return () => window.clearInterval(id);
+  }, [ended]);
+
   function switchRoom(code: string) {
     if (code === activeCode && !ended) return;
     setActiveCode(code);
     setEnded(false);
     setStatus("通话中（模拟）");
     setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
+    playJoinSound();
   }
 
   function forgetRoom(code: string) {
@@ -216,6 +241,7 @@ export default function LabPage() {
     setEnded(false);
     setStatus("通话中（模拟）");
     setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
+    playJoinSound();
     setMessages((prev) => [
       ...prev.slice(-299),
       {
@@ -232,6 +258,7 @@ export default function LabPage() {
   function sendChat(e: FormEvent) {
     e.preventDefault();
     if (!draft.trim() || ended) return;
+    unlockNotifySounds();
     const text = draft.trim();
     const roomAtSend = activeCode;
     setDraft("");
@@ -248,6 +275,7 @@ export default function LabPage() {
     ]);
     window.setTimeout(() => {
       if (chatRoomRef.current !== roomAtSend) return;
+      playMessageSound();
       setMessages((prev) => [
         ...prev.slice(-299),
         {
@@ -351,7 +379,14 @@ export default function LabPage() {
                 <p className="mt-2 text-sm text-sand-100/50">可重新接听或切换历史房间</p>
               </div>
             ) : (
-              <PeerField peers={peers} localDeafened={deafened} />
+              <PeerField
+                peers={peers}
+                localDeafened={deafened}
+                volumes={peerVolumes}
+                onVolumeChange={(identity, value) =>
+                  setPeerVolumes((prev) => ({ ...prev, [identity]: value }))
+                }
+              />
             )}
           </div>
 
@@ -381,6 +416,10 @@ export default function LabPage() {
                 >
                   {muted ? "取消静音" : "静音"}
                 </button>
+                <CallAudioControls
+                  noiseReduction={noiseReduction}
+                  onToggleNoise={() => setNoiseReduction((v) => !v)}
+                />
                 <button
                   type="button"
                   onClick={() => setDeafened((v) => !v)}
