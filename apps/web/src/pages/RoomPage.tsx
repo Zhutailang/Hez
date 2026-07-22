@@ -205,14 +205,29 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!token) return;
-    api
-      .listRooms(token)
-      .then((res) => {
-        setHistory(mergeHistory(res.rooms, getRoomHistory()));
-        return api.getRoomParticipantCounts(token);
-      })
-      .then((res) => setParticipantCounts(res.counts))
-      .catch(() => setHistory(getRoomHistory()));
+    let cancelled = false;
+
+    const refresh = () => {
+      api
+        .listRooms(token)
+        .then((res) => {
+          if (!cancelled) setHistory(mergeHistory(res.rooms, getRoomHistory()));
+          return api.getRoomParticipantCounts(token);
+        })
+        .then((res) => {
+          if (!cancelled) setParticipantCounts(res.counts);
+        })
+        .catch(() => {
+          if (!cancelled) setHistory(getRoomHistory());
+        });
+    };
+
+    refresh();
+    const timer = window.setInterval(refresh, 12_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [token, activeCode]);
 
   useEffect(() => {
@@ -688,7 +703,11 @@ export default function RoomPage() {
                             <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="opacity-70">
                               <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2Z" />
                             </svg>
-                            {active && !ended ? peers.length : (participantCounts[item.code] ?? 0)}
+                            {active && !ended
+                              ? peers.length
+                              : (participantCounts[item.code] ??
+                                participantCounts[item.code.toUpperCase()] ??
+                                0)}
                           </span>
                         </div>
                         {item.hostName ? (

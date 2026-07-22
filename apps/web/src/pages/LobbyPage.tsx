@@ -48,15 +48,27 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (!token) return;
-    api
-      .listRooms(token)
-      .then((res) => {
-        setApiRooms(res.rooms);
-        // Fetch participant counts for all rooms
-        return api.getRoomParticipantCounts(token);
-      })
-      .then((res) => setParticipantCounts(res.counts))
-      .catch(() => undefined);
+    let cancelled = false;
+
+    const refresh = () => {
+      api
+        .listRooms(token)
+        .then((res) => {
+          if (!cancelled) setApiRooms(res.rooms);
+          return api.getRoomParticipantCounts(token);
+        })
+        .then((res) => {
+          if (!cancelled) setParticipantCounts(res.counts);
+        })
+        .catch(() => undefined);
+    };
+
+    refresh();
+    const timer = window.setInterval(refresh, 12_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [token]);
 
   async function createRoom(e: FormEvent) {
@@ -215,7 +227,7 @@ export default function LobbyPage() {
                           <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="opacity-60">
                             <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2Z" />
                           </svg>
-                          {participantCounts[room.code] ?? 0}
+                          {participantCounts[room.code] ?? participantCounts[room.code.toUpperCase()] ?? 0}
                         </span>
                       </div>
                     </button>
