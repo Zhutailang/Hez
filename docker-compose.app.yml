@@ -1,0 +1,15 @@
+# API on older hosts (e.g. Debian 10) where native Node 20 + better-sqlite3 cannot build.
+services:
+  hez-api:
+    image: node:20-bookworm-slim
+    container_name: hez-api
+    network_mode: host
+    working_dir: /app/apps/server
+    env_file:
+      - ./apps/server/.env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./:/app
+    command: ["node", "dist/index.js"]
+    restart: unless-stopped

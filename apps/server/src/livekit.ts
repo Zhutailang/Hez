@@ -1,16 +1,18 @@
-import { AccessToken } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
+import { getServerSettings } from "./settings.js";
 
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIhezdevkey";
-const LIVEKIT_API_SECRET =
-  process.env.LIVEKIT_API_SECRET || "hez_dev_secret_change_me_in_production";
-export const LIVEKIT_URL = process.env.LIVEKIT_URL || "ws://localhost:7880";
+/** @deprecated prefer getLivekitUrl() — kept for log compatibility at boot */
+export function getLivekitUrl(): string {
+  return getServerSettings().livekitUrl;
+}
 
 export async function createRoomToken(opts: {
   roomName: string;
   identity: string;
   displayName: string;
 }): Promise<string> {
-  const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+  const { livekitApiKey, livekitApiSecret } = getServerSettings();
+  const token = new AccessToken(livekitApiKey, livekitApiSecret, {
     identity: opts.identity,
     name: opts.displayName,
     ttl: "2h",
@@ -25,4 +27,48 @@ export async function createRoomToken(opts: {
   });
 
   return token.toJwt();
+}
+
+/**
+ * Get participant count for a LiveKit room.
+ * Returns 0 if the room doesn't exist or has no participants.
+ */
+export async function getRoomParticipantCount(roomName: string): Promise<number> {
+  try {
+    const { livekitUrl, livekitApiKey, livekitApiSecret } = getServerSettings();
+    if (!livekitUrl || !livekitApiKey || !livekitApiSecret) return 0;
+    const svc = new RoomServiceClient(livekitUrl, livekitApiKey, livekitApiSecret);
+    const participants = await svc.listParticipants(roomName);
+    return participants.length;
+  } catch {
+    // Room may not exist on LiveKit yet
+    return 0;
+  }
+}
+
+/**
+ * Get participant counts for multiple LiveKit rooms in parallel.
+ * Returns a map of roomName → count.
+ */
+export async function getRoomParticipantCounts(
+  roomNames: string[],
+): Promise<Record<string, number>> {
+  const { livekitUrl, livekitApiKey, livekitApiSecret } = getServerSettings();
+  if (!livekitUrl || !livekitApiKey || !livekitApiSecret || roomNames.length === 0) {
+    return {};
+  }
+  const svc = new RoomServiceClient(livekitUrl, livekitApiKey, livekitApiSecret);
+  const results = await Promise.allSettled(
+    roomNames.map(async (name) => {
+      const participants = await svc.listParticipants(name);
+      return { name, count: participants.length };
+    }),
+  );
+  const map: Record<string, number> = {};
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      map[r.value.name] = r.value.count;
+    }
+  }
+  return map;
 }

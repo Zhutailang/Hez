@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api, type Room } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
@@ -37,6 +37,7 @@ export default function LobbyPage() {
   const [joinCode, setJoinCode] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
 
   const rooms = useMemo(
     () => mergeRooms(apiRooms, getRoomHistory()),
@@ -49,7 +50,12 @@ export default function LobbyPage() {
     if (!token) return;
     api
       .listRooms(token)
-      .then((res) => setApiRooms(res.rooms))
+      .then((res) => {
+        setApiRooms(res.rooms);
+        // Fetch participant counts for all rooms
+        return api.getRoomParticipantCounts(token);
+      })
+      .then((res) => setParticipantCounts(res.counts))
       .catch(() => undefined);
   }, [token]);
 
@@ -98,6 +104,14 @@ export default function LobbyPage() {
         <BrandMark />
         <div className="flex items-center gap-4 text-sm">
           <span className="text-sand-100/65">{user?.displayName}</span>
+          {user?.role === "admin" ? (
+            <Link
+              to="/admin"
+              className="rounded-lg border border-pulse-400/35 px-3 py-1.5 text-pulse-300 transition hover:bg-pulse-500/10"
+            >
+              服务器设置
+            </Link>
+          ) : null}
           <button
             type="button"
             onClick={logout}
@@ -193,9 +207,17 @@ export default function LobbyPage() {
                           {room.hostName ? `主持 · ${room.hostName}` : "历史访问"}
                         </div>
                       </div>
-                      <span className="ml-3 shrink-0 font-mono tracking-[0.2em] text-pulse-300">
-                        {room.code}
-                      </span>
+                      <div className="ml-3 flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="font-mono tracking-[0.2em] text-pulse-300">
+                          {room.code}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-sand-100/55">
+                          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="opacity-60">
+                            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2Z" />
+                          </svg>
+                          {participantCounts[room.code] ?? 0}
+                        </span>
+                      </div>
                     </button>
                     <button
                       type="button"

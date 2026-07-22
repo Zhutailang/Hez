@@ -17,6 +17,7 @@ apps/server/data/
 apps/web/dist/
 *.tsbuildinfo
 apps/server/.env.cloud
+backups/
 
 # Cloud ops scripts that embed host credentials — keep local only
 scripts/ssh_probe.py

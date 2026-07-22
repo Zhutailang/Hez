@@ -1,4 +1,4 @@
-"""Deploy latest Hez web+server to cloud (no HEZ_DEMO)."""
+"""Deploy latest Hez web+server to Seoul cloud (no HEZ_DEMO)."""
 import io
 import os
 import sys
@@ -8,13 +8,14 @@ from pathlib import Path
 
 import paramiko
 
-HOST = "1.94.102.147"
+HOST = "43.108.12.78"
 USER = "root"
 PASSWORD = "liwei0.123"
 ROOT = Path(r"D:\GitHub\Hez")
 REMOTE = "/opt/hez"
+DOMAIN = "hez.zhutairo.top"
 
-EXCLUDE_DIRS = {"node_modules", ".git", "dist", "data", "tools", "agent-transcripts"}
+EXCLUDE_DIRS = {"node_modules", ".git", "dist", "data", "tools", "agent-transcripts", "backups"}
 EXCLUDE_FILES = {".env", "hez.db", "livekit.out.log", "livekit.err.log"}
 
 
@@ -67,14 +68,13 @@ def main():
     sftp.close()
 
     run(ssh, f"mkdir -p {REMOTE} && tar -xzf {remote_tar} -C {REMOTE}")
-    # Keep existing production .env if present
     run(
         ssh,
         f"test -f {REMOTE}/apps/server/.env || "
-        f"(test -f {REMOTE}/apps/server/.env.cloud && cp {REMOTE}/apps/server/.env.cloud {REMOTE}/apps/server/.env) || true",
+        f"(test -f {REMOTE}/apps/server/.env.cloud && "
+        f"cp {REMOTE}/apps/server/.env.cloud {REMOTE}/apps/server/.env) || true",
         check=False,
     )
-    # Ensure demo mode is OFF in production
     run(
         ssh,
         f"grep -q '^HEZ_DEMO=' {REMOTE}/apps/server/.env 2>/dev/null && "
@@ -83,24 +83,18 @@ def main():
         check=False,
     )
 
-    run(ssh, f"cd {REMOTE} && npm install", timeout=600)
-    run(ssh, f"cd {REMOTE} && npm run build --workspace=@hez/server", timeout=180)
-    run(ssh, f"cd {REMOTE} && npm run build --workspace=@hez/web", timeout=300)
+    run(ssh, f"cd {REMOTE} && npm install", timeout=900)
+    run(ssh, f"cd {REMOTE} && npm run build --workspace=@hez/server", timeout=300)
+    run(ssh, f"cd {REMOTE} && npm run build --workspace=@hez/web", timeout=400)
     run(ssh, "systemctl restart hez-api && sleep 1 && systemctl is-active hez-api")
     run(ssh, "nginx -t && systemctl reload nginx", check=False)
 
     time.sleep(1)
     run(ssh, "curl -sS http://127.0.0.1:3001/api/health", check=False)
-    run(ssh, "curl -sS -o /dev/null -w '%{http_code}\\n' http://127.0.0.1:8080/", check=False)
-    run(ssh, "curl -sS -o /dev/null -w '%{http_code}\\n' https://hez.zhutairo.top/ || true", check=False)
-
-    # Confirm new assets exist
-    run(ssh, f"ls -la {REMOTE}/apps/web/dist/assets | head -20", check=False)
-    run(ssh, f"test -f {REMOTE}/apps/web/src/components/PeerField.tsx && echo PeerField_OK", check=False)
+    run(ssh, f"curl -sS -o /dev/null -w '%{{http_code}}\\n' https://{DOMAIN}/ || true", check=False)
 
     ssh.close()
-    print("\nDEPLOY OK — production updated (demo features now in formal Room/Lobby UI)")
-    print("Open: https://hez.zhutairo.top")
+    print(f"\nDEPLOY OK — https://{DOMAIN}")
 
 
 if __name__ == "__main__":

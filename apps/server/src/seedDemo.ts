@@ -38,7 +38,7 @@ export async function seedDemoDatabase(force = false) {
 
   const passwordHash = await bcrypt.hash("demo123", 10);
   const insertUser = db.prepare(
-    "INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)",
+    "INSERT INTO users (id, username, display_name, password_hash, role) VALUES (?, ?, ?, ?, 'user')",
   );
   const insertRoom = db.prepare(
     "INSERT INTO rooms (id, code, name, host_id) VALUES (?, ?, ?, ?)",

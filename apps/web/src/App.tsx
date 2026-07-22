@@ -1,10 +1,22 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
-import LabPage from "./pages/LabPage";
+import AdminPage from "./pages/AdminPage";
 import LobbyPage from "./pages/LobbyPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import RoomPage from "./pages/RoomPage";
+
+// LiveKit is heavy — load room/lab chunks only when opened
+const LabPage = lazy(() => import("./pages/LabPage"));
+const RoomPage = lazy(() => import("./pages/RoomPage"));
+
+function PageFallback() {
+  return (
+    <div className="min-h-screen grid place-items-center text-sand-100/70">
+      加载中…
+    </div>
+  );
+}
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,28 +33,38 @@ function Protected({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      {/* Lab is public; accept optional trailing slash */}
-      <Route path="/lab/*" element={<LabPage />} />
-      <Route
-        path="/"
-        element={
-          <Protected>
-            <LobbyPage />
-          </Protected>
-        }
-      />
-      <Route
-        path="/room/:code"
-        element={
-          <Protected>
-            <RoomPage />
-          </Protected>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<PageFallback />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        {/* Lab is public; accept optional trailing slash */}
+        <Route path="/lab/*" element={<LabPage />} />
+        <Route
+          path="/"
+          element={
+            <Protected>
+              <LobbyPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <Protected>
+              <AdminPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/room/:code"
+          element={
+            <Protected>
+              <RoomPage />
+            </Protected>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

@@ -2,6 +2,29 @@ export type User = {
   id: string;
   username: string;
   displayName: string;
+  role?: "user" | "admin";
+};
+
+export type LivekitEndpoint = {
+  id: string;
+  label: string;
+  url: string;
+  builtin?: boolean;
+};
+
+export type LivekitControlResult = {
+  activeId: string | null;
+  started: string[];
+  stopped: string[];
+  skipped: string[];
+  errors: string[];
+};
+
+export type AdminSettings = {
+  livekitUrl: string;
+  livekitApiKey: string;
+  livekitApiSecretSet: boolean;
+  livekitEndpoints: LivekitEndpoint[];
 };
 
 export type Room = {
@@ -11,6 +34,7 @@ export type Room = {
   hostId: string;
   hostName?: string;
   createdAt?: string;
+  participantCount?: number;
 };
 
 async function request<T>(path: string, init: RequestInit = {}, token?: string | null): Promise<T> {
@@ -47,6 +71,25 @@ export const api = {
     request<{ token: string; url: string; room: Room }>(
       `/api/rooms/${code}/token`,
       { method: "POST" },
+      token,
+    ),
+  getRoomParticipantCounts: (token: string) =>
+    request<{ counts: Record<string, number> }>("/api/rooms/participants", {}, token),
+  getAdminSettings: (token: string) =>
+    request<{ settings: AdminSettings }>("/api/admin/settings", {}, token),
+  updateAdminSettings: (
+    token: string,
+    body: {
+      livekitUrl?: string;
+      livekitApiKey?: string;
+      livekitApiSecret?: string;
+      addEndpoint?: { label: string; url: string };
+      removeEndpointId?: string;
+    },
+  ) =>
+    request<{ settings: AdminSettings; livekitControl?: LivekitControlResult | null }>(
+      "/api/admin/settings",
+      { method: "PUT", body: JSON.stringify(body) },
       token,
     ),
 };

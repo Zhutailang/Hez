@@ -9,6 +9,7 @@ export type HistoryRoom = {
   name: string;
   hostName?: string;
   visitedAt: number;
+  participantCount?: number;
 };
 
 function read(): HistoryRoom[] {

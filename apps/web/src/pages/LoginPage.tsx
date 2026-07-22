@@ -60,12 +60,6 @@ export default function LoginPage() {
             <p className="mt-5 max-w-md text-lg leading-relaxed text-sand-100/70">
               Hez 是多端实时语音通话。注册登录后创建房间，邀请同伴即刻接通。
             </p>
-            <p className="mt-6 text-sm text-sand-100/45">
-              本地 UI 预览（可选）：{" "}
-              <Link className="text-pulse-300 hover:underline" to="/lab">
-                Lab 假数据页
-              </Link>
-            </p>
           </section>
 
           <form

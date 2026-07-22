@@ -27,6 +27,7 @@ type HistoryRoom = {
   code: string;
   name: string;
   hostName: string;
+  participantCount?: number;
 };
 
 const BUBBLE_COLORS = [
@@ -39,9 +40,9 @@ const BUBBLE_COLORS = [
 ];
 
 const FAKE_HISTORY: HistoryRoom[] = [
-  { code: "DEMO01", name: "午后闲聊", hostName: "Alice" },
-  { code: "DEMO02", name: "项目同步", hostName: "Bob" },
-  { code: "LAB777", name: "本地联调房", hostName: "Carol" },
+  { code: "DEMO01", name: "午后闲聊", hostName: "Alice", participantCount: 4 },
+  { code: "DEMO02", name: "项目同步", hostName: "Bob", participantCount: 2 },
+  { code: "LAB777", name: "本地联调房", hostName: "Carol", participantCount: 0 },
 ];
 
 const FAKE_PEERS: Peer[] = [
@@ -331,8 +332,16 @@ export default function LabPage() {
                         className="min-w-0 flex-1 text-left"
                       >
                         <div className="truncate text-sm font-medium text-sand-50">{item.name}</div>
-                        <div className="mt-0.5 font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
-                          {item.code}
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
+                            {item.code}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-sand-100/50">
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="opacity-70">
+                              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2Z" />
+                            </svg>
+                            {item.participantCount ?? 0}
+                          </span>
                         </div>
                         <div className="mt-1 truncate text-[11px] text-sand-100/40">{item.hostName}</div>
                       </button>

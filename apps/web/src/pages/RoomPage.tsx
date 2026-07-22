@@ -75,7 +75,7 @@ function explainError(err: unknown): { title: string; hint: string } {
   ) {
     return {
       title: "当前页面无法使用麦克风 API",
-      hint: "请用系统 Chrome/Edge 打开 https://1.94.102.147（自签证书点继续），或本地 http://localhost:5173。不要用内置预览。",
+      hint: "请用系统 Chrome/Edge 打开 https://hez.zhutairo.top，或本地 http://localhost:5173。不要用内置预览。",
     };
   }
 
@@ -106,11 +106,12 @@ function explainError(err: unknown): { title: string; hint: string } {
   if (
     lower.includes("websocket") ||
     lower.includes("failed to fetch") ||
-    lower.includes("networkerror")
+    lower.includes("networkerror") ||
+    lower.includes("signal connection")
   ) {
     return {
       title: message,
-      hint: "无法连上 LiveKit 信令。请确认用 https://1.94.102.147 打开，并允许自签证书后重试。",
+      hint: "无法连上 LiveKit 信令。请到「服务器设置」确认所选节点已启动；若刚切换请稍等几秒再进房。",
     };
   }
 
@@ -123,13 +124,13 @@ function explainError(err: unknown): { title: string; hint: string } {
   ) {
     return {
       title: message,
-      hint: "WebRTC 媒体失败。请确认 LiveKit 正常，并用 https://1.94.102.147 打开。",
+      hint: "WebRTC 媒体失败。请确认所选 LiveKit 节点在线，并已放行 UDP/TCP 媒体端口。",
     };
   }
 
   return {
     title: message || "无法进入房间",
-    hint: "请确认服务都在运行，并用 https://1.94.102.147 重试。",
+    hint: "请确认 API 与所选 LiveKit 节点都在运行后重试。",
   };
 }
 
@@ -179,6 +180,7 @@ export default function RoomPage() {
   const noiseReductionRef = useRef(true);
   const chatRoomRef = useRef(code.toUpperCase());
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
 
   const speakingCount = useMemo(() => peers.filter((p) => p.isSpeaking).length, [peers]);
   const activeCode = code.toUpperCase();
@@ -205,7 +207,11 @@ export default function RoomPage() {
     if (!token) return;
     api
       .listRooms(token)
-      .then((res) => setHistory(mergeHistory(res.rooms, getRoomHistory())))
+      .then((res) => {
+        setHistory(mergeHistory(res.rooms, getRoomHistory()));
+        return api.getRoomParticipantCounts(token);
+      })
+      .then((res) => setParticipantCounts(res.counts))
       .catch(() => setHistory(getRoomHistory()));
   }, [token, activeCode]);
 
@@ -674,8 +680,16 @@ export default function RoomPage() {
                         className="min-w-0 flex-1 text-left"
                       >
                         <div className="truncate text-sm font-medium text-sand-50">{item.name}</div>
-                        <div className="mt-0.5 font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
-                          {item.code}
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="font-mono text-[11px] tracking-[0.18em] text-pulse-300/80">
+                            {item.code}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] text-sand-100/50">
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" className="opacity-70">
+                              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 14s-1 0-1-1 1-4 7-4 7 3 7 4-1 1-1 1H2Z" />
+                            </svg>
+                            {active && !ended ? peers.length : (participantCounts[item.code] ?? 0)}
+                          </span>
                         </div>
                         {item.hostName ? (
                           <div className="mt-1 truncate text-[11px] text-sand-100/40">

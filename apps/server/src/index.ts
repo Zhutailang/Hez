@@ -5,9 +5,18 @@ import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "./db.js";
-import { requireAuth, signToken, type AuthedRequest } from "./auth.js";
-import { LIVEKIT_URL, createRoomToken } from "./livekit.js";
+import { requireAdmin, requireAuth, signToken, type AuthedRequest } from "./auth.js";
+import { createRoomToken, getLivekitUrl, getRoomParticipantCounts } from "./livekit.js";
 import { DEMO_ACCOUNTS, seedDemoDatabase } from "./seedDemo.js";
+import { ensureAdminUser } from "./seedAdmin.js";
+import {
+  addLivekitEndpoint,
+  adminSettingsPayload,
+  removeLivekitEndpoint,
+  seedSettingsFromEnv,
+  updateServerSettings,
+} from "./settings.js";
+import { applyLivekitNodeSelection } from "./livekitControl.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3001);
@@ -45,7 +54,7 @@ app.get("/api/runtime", (_req, res) => {
   const lanIp = process.env.HEZ_LAN_IP || "";
   res.json({
     lanIp,
-    livekitUrl: LIVEKIT_URL,
+    livekitUrl: getLivekitUrl(),
     demo: DEMO_MODE,
     // Page must stay on localhost for getUserMedia (secure context).
     preferredOrigin: "http://localhost:5173",
@@ -77,6 +86,10 @@ app.post("/api/auth/register", async (req, res) => {
   }
 
   const { username, displayName, password } = parsed.data;
+  if (username.toLowerCase() === "admin") {
+    return res.status(403).json({ error: "该用户名为系统保留" });
+  }
+
   const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
   if (existing) {
     return res.status(409).json({ error: "用户名已被占用" });
@@ -85,10 +98,10 @@ app.post("/api/auth/register", async (req, res) => {
   const id = nanoid();
   const passwordHash = await bcrypt.hash(password, 10);
   db.prepare(
-    "INSERT INTO users (id, username, display_name, password_hash) VALUES (?, ?, ?, ?)",
+    "INSERT INTO users (id, username, display_name, password_hash, role) VALUES (?, ?, ?, ?, 'user')",
   ).run(id, username, displayName, passwordHash);
 
-  const user = { id, username, displayName };
+  const user = { id, username, displayName, role: "user" as const };
   return res.status(201).json({ token: signToken(user), user });
 });
 
@@ -104,21 +117,118 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   const row = db
-    .prepare("SELECT id, username, display_name, password_hash FROM users WHERE username = ?")
+    .prepare(
+      "SELECT id, username, display_name, password_hash, role FROM users WHERE username = ?",
+    )
     .get(parsed.data.username) as
-    | { id: string; username: string; display_name: string; password_hash: string }
+    | {
+        id: string;
+        username: string;
+        display_name: string;
+        password_hash: string;
+        role: string;
+      }
     | undefined;
 
   if (!row || !(await bcrypt.compare(parsed.data.password, row.password_hash))) {
     return res.status(401).json({ error: "用户名或密码错误" });
   }
 
-  const user = { id: row.id, username: row.username, displayName: row.display_name };
+  const user = {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    role: (row.role === "admin" ? "admin" : "user") as "admin" | "user",
+  };
   return res.json({ token: signToken(user), user });
 });
 
 app.get("/api/auth/me", requireAuth, (req: AuthedRequest, res) => {
-  res.json({ user: req.user });
+  const row = db
+    .prepare("SELECT id, username, display_name, role FROM users WHERE id = ?")
+    .get(req.user!.id) as
+    | { id: string; username: string; display_name: string; role: string }
+    | undefined;
+  if (!row) {
+    return res.status(401).json({ error: "用户不存在" });
+  }
+  const user = {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    role: (row.role === "admin" ? "admin" : "user") as "admin" | "user",
+  };
+  res.json({ user });
+});
+
+app.get("/api/admin/settings", requireAdmin, (_req, res) => {
+  res.json({ settings: adminSettingsPayload() });
+});
+
+const settingsSchema = z.object({
+  livekitUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .regex(/^wss?:\/\//i, "LiveKit URL 需以 ws:// 或 wss:// 开头")
+    .optional(),
+  livekitApiKey: z.string().trim().min(1).optional(),
+  livekitApiSecret: z.string().trim().min(1).optional(),
+  addEndpoint: z
+    .object({
+      label: z.string().trim().min(1).max(40),
+      url: z
+        .string()
+        .trim()
+        .regex(/^wss?:\/\//i, "LiveKit URL 需以 ws:// 或 wss:// 开头"),
+    })
+    .optional(),
+  removeEndpointId: z.string().trim().min(1).optional(),
+});
+
+app.put("/api/admin/settings", requireAdmin, async (req, res) => {
+  const parsed = settingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "参数无效" });
+  }
+
+  const { addEndpoint, removeEndpointId, ...patch } = parsed.data;
+  if (
+    patch.livekitUrl === undefined &&
+    patch.livekitApiKey === undefined &&
+    patch.livekitApiSecret === undefined &&
+    addEndpoint === undefined &&
+    removeEndpointId === undefined
+  ) {
+    return res.status(400).json({ error: "没有可更新的字段" });
+  }
+
+  try {
+    if (addEndpoint) addLivekitEndpoint(addEndpoint);
+    if (removeEndpointId) removeLivekitEndpoint(removeEndpointId);
+    if (
+      patch.livekitUrl !== undefined ||
+      patch.livekitApiKey !== undefined ||
+      patch.livekitApiSecret !== undefined
+    ) {
+      updateServerSettings(patch);
+    }
+  } catch (err) {
+    return res.status(400).json({
+      error: err instanceof Error ? err.message : "更新失败",
+    });
+  }
+
+  const payload = adminSettingsPayload();
+  let livekitControl = null as Awaited<ReturnType<typeof applyLivekitNodeSelection>> | null;
+
+  // Saving an active LiveKit URL also starts that node and stops the other builtin
+  if (patch.livekitUrl !== undefined) {
+    livekitControl = await applyLivekitNodeSelection(payload.livekitUrl);
+  }
+
+  console.log(`[hez] Admin updated settings; LiveKit URL => ${payload.livekitUrl}`);
+  res.json({ settings: payload, livekitControl });
 });
 
 const createRoomSchema = z.object({
@@ -174,6 +284,13 @@ app.get("/api/rooms", requireAuth, (_req, res) => {
   res.json({ rooms });
 });
 
+app.get("/api/rooms/participants", requireAuth, async (_req, res) => {
+  const rooms = db.prepare("SELECT code FROM rooms").all() as { code: string }[];
+  const codes = rooms.map((r) => r.code);
+  const counts = await getRoomParticipantCounts(codes);
+  res.json({ counts });
+});
+
 app.get("/api/rooms/:code", requireAuth, (req, res) => {
   const room = db
     .prepare(
@@ -210,12 +327,15 @@ app.post("/api/rooms/:code/token", requireAuth, async (req: AuthedRequest, res) 
 
   res.json({
     token,
-    url: LIVEKIT_URL,
+    url: getLivekitUrl(),
     room: { id: room.id, code: room.code, name: room.name },
   });
 });
 
 async function boot() {
+  seedSettingsFromEnv();
+  await ensureAdminUser();
+
   if (DEMO_MODE) {
     await seedDemoDatabase(process.env.HEZ_DEMO_RESET === "1");
     console.log("[hez] DEMO MODE — fake SQLite seeded (alice/bob/carol · demo123)");
@@ -223,7 +343,7 @@ async function boot() {
 
   app.listen(PORT, () => {
     console.log(`[hez] API listening on http://localhost:${PORT}`);
-    console.log(`[hez] LiveKit URL: ${LIVEKIT_URL}`);
+    console.log(`[hez] LiveKit URL: ${getLivekitUrl()}`);
     if (DEMO_MODE) {
       console.log(`[hez] Demo DB: ${process.env.DATABASE_PATH || "./data/hez.db"}`);
     }
