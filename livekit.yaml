@@ -12,3 +12,6 @@ keys:
   APIhezdevkey: hez_dev_secret_change_me_in_production
 logging:
   level: info
+room:
+  # Hard cap: max concurrent participants per room
+  max_participants: 16
