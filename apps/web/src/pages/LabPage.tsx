@@ -8,7 +8,7 @@ import MobileRoomTabs, {
   type RoomMobilePanel,
 } from "../components/MobileRoomTabs";
 import PeerField from "../components/PeerField";
-import { playJoinSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
+import { playJoinSound, playLeaveSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
 
 type Peer = {
   identity: string;
@@ -186,22 +186,39 @@ export default function LabPage() {
     };
   }, [ended]);
 
-  // Lab: periodically simulate a remote member re-entering (cue sound)
+  // Lab: periodically simulate remote join / leave (cue sounds)
   useEffect(() => {
     if (ended) return;
+    let joinNext = true;
     const id = window.setInterval(() => {
-      playJoinSound();
-      setMessages((prev) => [
-        ...prev.slice(-299),
-        {
-          id: `sys-join-${Date.now()}`,
-          identity: "system",
-          name: "系统",
-          text: "有成员进入语音房间（模拟）",
-          at: Date.now(),
-          isLocal: false,
-        },
-      ]);
+      if (joinNext) {
+        playJoinSound();
+        setMessages((prev) => [
+          ...prev.slice(-299),
+          {
+            id: `sys-join-${Date.now()}`,
+            identity: "system",
+            name: "系统",
+            text: "有成员进入语音房间（模拟）",
+            at: Date.now(),
+            isLocal: false,
+          },
+        ]);
+      } else {
+        playLeaveSound();
+        setMessages((prev) => [
+          ...prev.slice(-299),
+          {
+            id: `sys-leave-${Date.now()}`,
+            identity: "system",
+            name: "系统",
+            text: "有成员离开语音房间（模拟）",
+            at: Date.now(),
+            isLocal: false,
+          },
+        ]);
+      }
+      joinNext = !joinNext;
     }, 28_000);
     return () => window.clearInterval(id);
   }, [ended]);
@@ -213,7 +230,6 @@ export default function LabPage() {
     setStatus("通话中（模拟）");
     setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
     setMobilePanel("call");
-    playJoinSound();
   }
 
   function forgetRoom(code: string) {
@@ -248,7 +264,6 @@ export default function LabPage() {
     setEnded(false);
     setStatus("通话中（模拟）");
     setPeers(FAKE_PEERS.map((p) => (p.isLocal ? { ...p, isMuted: muted } : p)));
-    playJoinSound();
     setMessages((prev) => [
       ...prev.slice(-299),
       {

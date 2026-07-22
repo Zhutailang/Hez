@@ -25,7 +25,7 @@ import {
   removeHistoryRoom,
   type HistoryRoom,
 } from "../roomHistory";
-import { playJoinSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
+import { playJoinSound, playLeaveSound, playMessageSound, unlockNotifySounds } from "../notifySounds";
 
 type Peer = {
   identity: string;
@@ -373,7 +373,20 @@ export default function RoomPage() {
             });
           }
         });
-        lkRoom.on(RoomEvent.ParticipantDisconnected, refresh);
+        lkRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
+          refresh();
+          if (!endingRef.current) {
+            playLeaveSound();
+            pushChat({
+              id: `sys-leave-${Date.now()}`,
+              identity: "system",
+              name: "系统",
+              text: `${participant.name || participant.identity} 离开了语音房间`,
+              at: Date.now(),
+              isLocal: false,
+            });
+          }
+        });
         lkRoom.on(RoomEvent.ActiveSpeakersChanged, refresh);
         lkRoom.on(RoomEvent.TrackMuted, refresh);
         lkRoom.on(RoomEvent.TrackUnmuted, refresh);
