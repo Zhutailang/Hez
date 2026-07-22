@@ -15,7 +15,7 @@ export default function CallAudioControls({
       type="button"
       onClick={onToggleNoise}
       disabled={disabled}
-      className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-40 ${
+      className={`rounded-full px-3.5 py-2.5 text-xs font-semibold transition disabled:opacity-40 sm:px-5 sm:py-3 sm:text-sm ${
         noiseReduction
           ? "bg-pulse-500 text-ink-950 hover:bg-pulse-400"
           : "border border-white/15 text-sand-100/85 hover:border-pulse-400/40"

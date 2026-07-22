@@ -32,13 +32,13 @@ export default function RegisterPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <WaveField />
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6 py-16">
-        <div className="animate-fadeUp mb-8">
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-10 sm:px-6 sm:py-16">
+        <div className="animate-fadeUp mb-6 sm:mb-8">
           <BrandMark />
         </div>
         <form
           onSubmit={onSubmit}
-          className="animate-fadeUp rounded-3xl border border-white/10 bg-ink-900/70 p-8 shadow-glow backdrop-blur-md"
+          className="animate-fadeUp rounded-3xl border border-white/10 bg-ink-900/70 p-6 shadow-glow backdrop-blur-md sm:p-8"
         >
           <h1 className="font-display text-3xl text-sand-50">创建 Hez 账号</h1>
           <p className="mt-2 text-sm text-sand-100/55">几秒后即可发起多人语音通话</p>

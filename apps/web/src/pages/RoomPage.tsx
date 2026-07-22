@@ -13,6 +13,10 @@ import { api, type Room as ApiRoom } from "../api";
 import { useAuth } from "../auth";
 import BrandMark from "../components/BrandMark";
 import CallAudioControls from "../components/CallAudioControls";
+import MobileRoomTabs, {
+  mobilePanelClass,
+  type RoomMobilePanel,
+} from "../components/MobileRoomTabs";
 import PeerField from "../components/PeerField";
 import { loadRoomChat, saveRoomChat } from "../chatHistory";
 import {
@@ -171,6 +175,7 @@ export default function RoomPage() {
   );
   const [draft, setDraft] = useState("");
   const [history, setHistory] = useState<HistoryRoom[]>(() => getRoomHistory());
+  const [mobilePanel, setMobilePanel] = useState<RoomMobilePanel>("call");
   const roomRef = useRef<Room | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const audioHostRef = useRef<HTMLDivElement | null>(null);
@@ -639,6 +644,7 @@ export default function RoomPage() {
   function switchRoom(nextCode: string) {
     const target = nextCode.toUpperCase();
     if (target === activeCode && !ended) return;
+    setMobilePanel("call");
     void (async () => {
       endingRef.current = true;
       const current = roomRef.current;
@@ -655,22 +661,37 @@ export default function RoomPage() {
     setHistory((prev) => prev.filter((r) => r.code !== roomCode.toUpperCase()));
   }
 
+  const panelShell =
+    "min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 lg:h-[70vh] lg:max-h-[70vh] lg:rounded-[28px]";
+  const toolBtn =
+    "rounded-full px-3.5 py-2.5 text-xs font-semibold transition disabled:opacity-40 sm:px-5 sm:py-3 sm:text-sm";
+
   return (
-    <div className="relative min-h-screen overflow-hidden px-3 py-5 md:px-6 md:py-6">
+    <div className="relative flex h-dvh max-h-dvh flex-col overflow-hidden px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:py-5 lg:min-h-screen lg:h-auto lg:max-h-none lg:py-6">
       {/* Hidden host for LiveKit remote <audio> elements */}
       <div ref={audioHostRef} className="sr-only" aria-hidden />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(61,214,184,0.12),transparent_42%)]" />
 
-      <header className="relative z-10 mx-auto flex max-w-[1400px] items-center justify-between px-1">
+      <header className="relative z-10 mx-auto flex w-full max-w-[1400px] shrink-0 items-center justify-between gap-2 px-1">
         <BrandMark />
-        <Link to="/" className="text-sm text-sand-100/60 hover:text-pulse-300">
+        <Link to="/" className="shrink-0 text-sm text-sand-100/60 hover:text-pulse-300">
           返回大厅
         </Link>
       </header>
 
-      <main className="relative z-10 mx-auto mt-5 grid max-w-[1400px] gap-4 lg:grid-cols-[240px_minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
-        <aside className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-[24px] border border-white/10 bg-ink-900/50 backdrop-blur">
-          <div className="shrink-0 border-b border-white/8 px-4 py-4">
+      <div className="relative z-10 mx-auto mt-3 w-full max-w-[1400px] shrink-0 lg:hidden">
+        <MobileRoomTabs
+          active={mobilePanel}
+          onChange={setMobilePanel}
+          chatBadge={ended ? null : peers.length}
+        />
+      </div>
+
+      <main className="relative z-10 mx-auto mt-3 flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-3 lg:mt-5 lg:grid lg:h-auto lg:flex-none lg:grid-cols-[240px_minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start lg:gap-4">
+        <aside
+          className={`${mobilePanelClass(mobilePanel, "history")} ${panelShell} flex-1 bg-ink-900/50 backdrop-blur lg:flex-none`}
+        >
+          <div className="shrink-0 border-b border-white/8 px-4 py-3 sm:py-4">
             <h2 className="font-display text-lg text-sand-50">历史房间</h2>
             <p className="mt-1 text-xs text-sand-100/45">点击切换，可移除记录</p>
           </div>
@@ -720,7 +741,7 @@ export default function RoomPage() {
                         type="button"
                         title="从历史中移除"
                         onClick={(e) => forgetRoom(e, item.code)}
-                        className="mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-sand-100/25 opacity-0 transition hover:bg-white/10 hover:text-sand-100/70 group-hover:opacity-100"
+                        className="mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-xs text-sand-100/40 transition hover:bg-white/10 hover:text-sand-100/70 lg:text-sand-100/25 lg:opacity-0 lg:group-hover:opacity-100"
                       >
                         ×
                       </button>
@@ -732,29 +753,35 @@ export default function RoomPage() {
           </ul>
         </aside>
 
-        <section className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col rounded-[28px] border border-white/10 bg-ink-900/45 p-5 backdrop-blur md:p-7">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-pulse-300/80">{status}</p>
-              <h1 className="mt-2 font-display text-3xl text-sand-50 md:text-4xl">
+        <section
+          className={`${mobilePanelClass(mobilePanel, "call")} ${panelShell} flex-1 bg-ink-900/45 p-4 backdrop-blur sm:p-5 md:p-7 lg:flex-none`}
+        >
+          <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-pulse-300/80 sm:text-xs">
+                {status}
+              </p>
+              <h1 className="mt-1 truncate font-display text-2xl text-sand-50 sm:mt-2 sm:text-3xl md:text-4xl">
                 {roomName || "语音房间"}
               </h1>
-              <p className="mt-2 font-mono tracking-[0.24em] text-sand-100/50">{activeCode}</p>
+              <p className="mt-1 font-mono text-sm tracking-[0.24em] text-sand-100/50 sm:mt-2">
+                {activeCode}
+              </p>
             </div>
-            <p className="text-sm text-sand-100/55">
+            <p className="shrink-0 text-xs text-sand-100/55 sm:text-sm">
               {ended ? "未接听" : `${peers.length} 人 · ${speakingCount} 人在说`}
             </p>
           </div>
 
           {error ? (
-            <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-950/25 px-4 py-3 text-amber-100">
+            <div className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-950/25 px-4 py-3 text-amber-100 sm:mt-5">
               <p className="text-sm font-medium">{error.title}</p>
               <p className="mt-1 text-xs text-amber-100/70">{error.hint}</p>
             </div>
           ) : null}
 
           {audioBlocked && !ended ? (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-pulse-400/30 bg-pulse-500/10 px-4 py-3">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-pulse-400/30 bg-pulse-500/10 px-4 py-3 sm:mt-4">
               <p className="text-sm text-sand-50">浏览器拦截了声音，点一下开启扬声器</p>
               <button
                 type="button"
@@ -766,11 +793,13 @@ export default function RoomPage() {
             </div>
           ) : null}
 
-          <div className="relative mt-8 flex flex-1 items-center justify-center">
+          <div className="relative mt-4 flex min-h-0 flex-1 items-center justify-center sm:mt-6 md:mt-8">
             {ended ? (
               <div className="relative text-center">
-                <p className="font-display text-2xl text-sand-50">接听已关闭</p>
-                <p className="mt-2 text-sm text-sand-100/50">语音通道已断开，可重新接听或切换历史房间</p>
+                <p className="font-display text-xl text-sand-50 sm:text-2xl">接听已关闭</p>
+                <p className="mt-2 text-sm text-sand-100/50">
+                  语音通道已断开，可重新接听或切换历史房间
+                </p>
               </div>
             ) : (
               <PeerField
@@ -782,20 +811,20 @@ export default function RoomPage() {
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:mt-6 sm:gap-3">
             {ended ? (
               <>
                 <button
                   type="button"
                   onClick={rejoin}
-                  className="rounded-full bg-pulse-500 px-5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-pulse-400"
+                  className={`${toolBtn} bg-pulse-500 text-ink-950 hover:bg-pulse-400`}
                 >
                   重新接听
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate("/")}
-                  className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-sand-100/80 transition hover:border-pulse-400/40 hover:text-pulse-300"
+                  className={`${toolBtn} border border-white/15 text-sand-100/80 hover:border-pulse-400/40 hover:text-pulse-300`}
                 >
                   返回大厅
                 </button>
@@ -806,7 +835,7 @@ export default function RoomPage() {
                   type="button"
                   onClick={toggleMute}
                   disabled={!room}
-                  className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-40 ${
+                  className={`${toolBtn} ${
                     muted
                       ? "bg-sand-100 text-ink-950"
                       : "bg-pulse-500 text-ink-950 hover:bg-pulse-400"
@@ -823,7 +852,7 @@ export default function RoomPage() {
                   type="button"
                   onClick={toggleDeafen}
                   disabled={!room}
-                  className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-40 ${
+                  className={`${toolBtn} ${
                     deafened
                       ? "bg-sand-100 text-ink-950"
                       : "border border-white/15 text-sand-100/85 hover:border-pulse-400/40"
@@ -834,27 +863,31 @@ export default function RoomPage() {
                 <button
                   type="button"
                   onClick={() => void hangUp()}
-                  className="rounded-full bg-red-500/90 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-400"
+                  className={`${toolBtn} bg-red-500/90 text-white hover:bg-red-400`}
                 >
-                  关闭接听
+                  挂断
                 </button>
               </>
             )}
           </div>
         </section>
 
-        <section className="flex h-[70vh] max-h-[70vh] min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0a1520]/90 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-          <div className="flex shrink-0 items-center justify-between border-b border-white/8 px-5 py-4">
+        <section
+          className={`${mobilePanelClass(mobilePanel, "chat")} ${panelShell} flex-1 bg-[#0a1520]/90 shadow-[0_20px_60px_rgba(0,0,0,0.35)] lg:flex-none`}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-white/8 px-4 py-3 sm:px-5 sm:py-4">
             <div>
-              <h2 className="font-display text-xl text-sand-50">群聊</h2>
-              <p className="mt-1 text-xs text-sand-100/45">本房间本地记录 · 切换互不干扰</p>
+              <h2 className="font-display text-lg text-sand-50 sm:text-xl">群聊</h2>
+              <p className="mt-1 hidden text-xs text-sand-100/45 sm:block">
+                本房间本地记录 · 切换互不干扰
+              </p>
             </div>
             <span className="rounded-full bg-pulse-500/15 px-3 py-1 text-xs text-pulse-300">
               {ended ? "已离线" : `${peers.length} 在线`}
             </span>
           </div>
 
-          <div className="hez-scroll min-h-0 flex-1 space-y-4 px-4 py-5">
+          <div className="hez-scroll min-h-0 flex-1 space-y-4 px-3 py-4 sm:px-4 sm:py-5">
             {messages.map((msg) => {
               if (msg.identity === "system") {
                 return (
@@ -872,12 +905,16 @@ export default function RoomPage() {
                   className={`flex items-end gap-2 ${msg.isLocal ? "flex-row-reverse" : ""}`}
                 >
                   <div
-                    className={`grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br text-sm font-semibold text-ink-950 ${colorFor(msg.identity)}`}
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br text-sm font-semibold text-ink-950 sm:h-9 sm:w-9 ${colorFor(msg.identity)}`}
                   >
                     {initialOf(msg.name)}
                   </div>
-                  <div className={`max-w-[75%] ${msg.isLocal ? "items-end" : "items-start"} flex flex-col`}>
-                    <span className={`mb-1 text-[11px] text-sand-100/40 ${msg.isLocal ? "text-right" : ""}`}>
+                  <div
+                    className={`flex max-w-[80%] flex-col sm:max-w-[75%] ${msg.isLocal ? "items-end" : "items-start"}`}
+                  >
+                    <span
+                      className={`mb-1 text-[11px] text-sand-100/40 ${msg.isLocal ? "text-right" : ""}`}
+                    >
                       {msg.name}
                     </span>
                     <div
@@ -898,7 +935,7 @@ export default function RoomPage() {
 
           <form
             onSubmit={sendChat}
-            className="shrink-0 border-t border-white/8 bg-[#071018]/80 px-4 py-3 backdrop-blur"
+            className="shrink-0 border-t border-white/8 bg-[#071018]/80 px-3 py-3 backdrop-blur sm:px-4"
           >
             <div className="flex items-end gap-2">
               <textarea
@@ -919,12 +956,12 @@ export default function RoomPage() {
                       : "连接中，稍候再发消息"
                 }
                 disabled={!room || ended}
-                className="max-h-28 min-h-[52px] flex-1 resize-none rounded-2xl border border-white/10 bg-ink-950/70 px-3 py-2.5 text-sm text-sand-50 outline-none transition placeholder:text-sand-100/30 focus:border-pulse-400/50 disabled:opacity-50"
+                className="max-h-28 min-h-[44px] flex-1 resize-none rounded-2xl border border-white/10 bg-ink-950/70 px-3 py-2.5 text-sm text-sand-50 outline-none transition placeholder:text-sand-100/30 focus:border-pulse-400/50 disabled:opacity-50 sm:min-h-[52px]"
               />
               <button
                 type="submit"
                 disabled={!room || ended || !draft.trim()}
-                className="rounded-2xl bg-pulse-500 px-4 py-3 text-sm font-semibold text-ink-950 transition hover:bg-pulse-400 disabled:opacity-40"
+                className="rounded-2xl bg-pulse-500 px-3.5 py-3 text-sm font-semibold text-ink-950 transition hover:bg-pulse-400 disabled:opacity-40 sm:px-4"
               >
                 发送
               </button>

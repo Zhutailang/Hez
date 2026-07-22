@@ -11,7 +11,7 @@ import paramiko
 HOST = "43.108.12.78"
 USER = "root"
 PASSWORD = "liwei0.123"
-ROOT = Path(r"D:\GitHub\Hez")
+ROOT = Path(r"X:\Github\Hez")
 REMOTE = "/opt/hez"
 DOMAIN = "hez.zhutairo.top"
 

@@ -50,21 +50,21 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       <WaveField />
-      <main className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-16 lg:px-10">
-        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+      <main className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-4 py-10 sm:px-6 sm:py-16 lg:px-10">
+        <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="animate-fadeUp">
             <BrandMark size="lg" />
-            <h1 className="mt-8 max-w-xl font-display text-5xl font-semibold leading-[1.05] tracking-tight text-sand-50 md:text-6xl">
+            <h1 className="mt-6 max-w-xl font-display text-4xl font-semibold leading-[1.05] tracking-tight text-sand-50 sm:mt-8 sm:text-5xl md:text-6xl">
               声音落进同一间房间
             </h1>
-            <p className="mt-5 max-w-md text-lg leading-relaxed text-sand-100/70">
+            <p className="mt-4 max-w-md text-base leading-relaxed text-sand-100/70 sm:mt-5 sm:text-lg">
               Hez 是多端实时语音通话。注册登录后创建房间，邀请同伴即刻接通。
             </p>
           </section>
 
           <form
             onSubmit={onSubmit}
-            className="animate-fadeUp rounded-3xl border border-white/10 bg-ink-900/70 p-8 shadow-glow backdrop-blur-md"
+            className="animate-fadeUp rounded-3xl border border-white/10 bg-ink-900/70 p-6 shadow-glow backdrop-blur-md sm:p-8"
             style={{ animationDelay: "80ms" }}
           >
             <h2 className="font-display text-2xl text-sand-50">登录</h2>

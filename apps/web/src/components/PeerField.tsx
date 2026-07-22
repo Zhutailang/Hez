@@ -251,15 +251,15 @@ export default function PeerField({
 
   if (peers.length === 0) {
     return (
-      <div className="relative flex min-h-[340px] w-full flex-1 items-center justify-center md:min-h-[400px]">
+      <div className="relative flex min-h-[220px] w-full flex-1 items-center justify-center sm:min-h-[280px] md:min-h-[340px] lg:min-h-[400px]">
         <p className="text-sand-100/45">{emptyText}</p>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[340px] w-full flex-1 md:min-h-[400px]">
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pulse-500/10 blur-3xl md:h-80 md:w-80" />
+    <div className="relative min-h-[220px] w-full flex-1 sm:min-h-[280px] md:min-h-[340px] lg:min-h-[400px]">
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pulse-500/10 blur-3xl sm:h-64 sm:w-64 md:h-80 md:w-80" />
       {/* Soft radial guide rings */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[42%] w-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.04]" />
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-[68%] w-[68%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.03]" />

@@ -111,30 +111,32 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen px-6 py-8 md:px-10">
-      <header className="mx-auto flex max-w-5xl items-center justify-between">
+    <div className="min-h-screen px-4 py-6 sm:px-6 sm:py-8 md:px-10">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
         <BrandMark />
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-sand-100/65">{user?.displayName}</span>
+        <div className="flex flex-wrap items-center justify-end gap-2 text-sm sm:gap-4">
+          <span className="max-w-[40vw] truncate text-sand-100/65 sm:max-w-none">
+            {user?.displayName}
+          </span>
           {user?.role === "admin" ? (
             <Link
               to="/admin"
-              className="rounded-lg border border-pulse-400/35 px-3 py-1.5 text-pulse-300 transition hover:bg-pulse-500/10"
+              className="rounded-lg border border-pulse-400/35 px-2.5 py-1.5 text-pulse-300 transition hover:bg-pulse-500/10 sm:px-3"
             >
-              服务器设置
+              设置
             </Link>
           ) : null}
           <button
             type="button"
             onClick={logout}
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-sand-100/80 transition hover:border-pulse-400/40 hover:text-pulse-300"
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-sand-100/80 transition hover:border-pulse-400/40 hover:text-pulse-300 sm:px-3"
           >
             退出
           </button>
         </div>
       </header>
 
-      <main className="mx-auto mt-14 max-w-5xl animate-fadeUp">
+      <main className="mx-auto mt-8 max-w-5xl animate-fadeUp sm:mt-14">
         {!window.isSecureContext ? (
           <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
             当前不是安全上下文，麦克风不可用。请改用{" "}
@@ -144,17 +146,17 @@ export default function LobbyPage() {
             ，或本地 http://localhost:5173
           </div>
         ) : null}
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-sand-50 md:text-5xl">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-sand-50 sm:text-4xl md:text-5xl">
           开始一场通话
         </h1>
-        <p className="mt-3 max-w-xl text-sand-100/65">
+        <p className="mt-3 max-w-xl text-sm text-sand-100/65 sm:text-base">
           创建房间并分享房间码，或输入房间码直接加入。多人语音由自建 LiveKit 转发。
         </p>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:mt-10 sm:gap-6 md:grid-cols-2">
           <form
             onSubmit={createRoom}
-            className="rounded-3xl border border-white/10 bg-ink-900/55 p-6 backdrop-blur"
+            className="rounded-3xl border border-white/10 bg-ink-900/55 p-5 backdrop-blur sm:p-6"
           >
             <h2 className="font-display text-xl text-sand-50">创建房间</h2>
             <input
@@ -174,7 +176,7 @@ export default function LobbyPage() {
 
           <form
             onSubmit={joinRoom}
-            className="rounded-3xl border border-white/10 bg-ink-900/55 p-6 backdrop-blur"
+            className="rounded-3xl border border-white/10 bg-ink-900/55 p-5 backdrop-blur sm:p-6"
           >
             <h2 className="font-display text-xl text-sand-50">加入房间</h2>
             <input
@@ -196,12 +198,12 @@ export default function LobbyPage() {
 
         {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
 
-        <section className="mt-12">
+        <section className="mt-10 sm:mt-12">
           <div className="flex items-end justify-between gap-3">
             <h2 className="text-sm uppercase tracking-[0.2em] text-sand-100/45">历史房间</h2>
-            <p className="text-xs text-sand-100/35">本地记录 + 服务端最近房间</p>
+            <p className="hidden text-xs text-sand-100/35 sm:block">本地记录 + 服务端最近房间</p>
           </div>
-          <ul className="hez-scroll mt-4 max-h-[40vh] space-y-3 overflow-y-auto pr-1">
+          <ul className="hez-scroll mt-4 max-h-[45vh] space-y-3 overflow-y-auto pr-1 sm:max-h-[40vh]">
             {rooms.length === 0 ? (
               <li className="text-sand-100/50">还没有房间，先创建一个吧。</li>
             ) : (
@@ -211,7 +213,7 @@ export default function LobbyPage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/room/${room.code}`)}
-                      className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-white/8 bg-ink-900/40 px-5 py-4 text-left transition hover:border-pulse-400/35"
+                      className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-white/8 bg-ink-900/40 px-4 py-3.5 text-left transition hover:border-pulse-400/35 sm:px-5 sm:py-4"
                     >
                       <div className="min-w-0">
                         <div className="truncate font-medium text-sand-50">{room.name}</div>
@@ -220,7 +222,7 @@ export default function LobbyPage() {
                         </div>
                       </div>
                       <div className="ml-3 flex shrink-0 flex-col items-end gap-1.5">
-                        <span className="font-mono tracking-[0.2em] text-pulse-300">
+                        <span className="font-mono text-sm tracking-[0.2em] text-pulse-300 sm:text-base">
                           {room.code}
                         </span>
                         <span className="inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-[11px] text-sand-100/55">
@@ -235,7 +237,7 @@ export default function LobbyPage() {
                       type="button"
                       title="从本地历史移除"
                       onClick={() => forget(room.code)}
-                      className="rounded-2xl border border-white/8 px-3 text-sand-100/30 transition hover:border-white/20 hover:text-sand-100/70"
+                      className="rounded-2xl border border-white/8 px-3 text-sand-100/45 transition hover:border-white/20 hover:text-sand-100/70"
                     >
                       ×
                     </button>
