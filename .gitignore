@@ -20,6 +20,7 @@ apps/server/.env.cloud
 backups/
 
 # Cloud ops scripts that embed host credentials — keep local only
+.cursor/rules/servers.mdc
 scripts/ssh_probe.py
 scripts/deploy_cloud.py
 scripts/deploy_cloud_continue.py

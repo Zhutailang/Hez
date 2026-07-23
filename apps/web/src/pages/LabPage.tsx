@@ -121,6 +121,8 @@ export default function LabPage() {
   const [deafened, setDeafened] = useState(false);
   const [peerVolumes, setPeerVolumes] = useState<Record<string, number>>({});
   const [noiseReduction, setNoiseReduction] = useState(true);
+  const [micVolume, setMicVolume] = useState(100);
+  const [masterVolume, setMasterVolume] = useState(100);
   const [ended, setEnded] = useState(false);
   const [activeCode, setActiveCode] = useState("DEMO01");
   const [history, setHistory] = useState(FAKE_HISTORY);
@@ -446,7 +448,31 @@ export default function LabPage() {
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:mt-6 sm:gap-3">
+          {/* Global volume sliders — separate row, no overlap */}
+          {!ended && (
+            <div className="mt-2 flex shrink-0 flex-col gap-2.5 px-2 sm:mt-3 sm:flex-row sm:items-center sm:gap-5 sm:px-4">
+              <div className="flex flex-1 items-center gap-2">
+                <span className="shrink-0 text-xs text-sand-100/50" title="麦克风音量">🎤</span>
+                <input
+                  type="range" min={0} max={100} step={1} value={micVolume}
+                  onChange={(e) => setMicVolume(Number(e.target.value))}
+                  className="hez-volume hez-volume-fill" aria-label="麦克风音量"
+                />
+                <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-sand-100/45">{micVolume}</span>
+              </div>
+              <div className="flex flex-1 items-center gap-2">
+                <span className="shrink-0 text-xs text-sand-100/50" title="整体音量">🔊</span>
+                <input
+                  type="range" min={0} max={100} step={1} value={masterVolume}
+                  onChange={(e) => setMasterVolume(Number(e.target.value))}
+                  className="hez-volume hez-volume-fill" aria-label="整体音量"
+                />
+                <span className="w-6 shrink-0 text-right text-[11px] tabular-nums text-sand-100/45">{masterVolume}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:mt-4 sm:gap-3">
             {ended ? (
               <button
                 type="button"

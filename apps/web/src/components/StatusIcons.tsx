@@ -50,43 +50,42 @@ export function MicOffIcon({ className = "h-3.5 w-3.5" }: IconProps) {
 type BadgeProps = {
   listening?: boolean;
   muted?: boolean;
-  isLocal?: boolean;
 };
 
-/** Avatar corner badges: headset bottom-left, mic-off bottom-right (symmetric). */
-export function AvatarStatusBadges({ listening = true, muted, isLocal }: BadgeProps) {
+/**
+ * Avatar status indicators rendered *inside* the rounded-square card.
+ * Positioned in the middle row between the initial letter and the volume slider.
+ */
+export function AvatarStatusBadges({ listening = true, muted }: BadgeProps) {
   return (
     <>
-      <span
-        title={listening ? "接听中" : "听筒已关"}
-        className={`absolute -bottom-1 -left-1 z-10 grid h-6 w-6 place-items-center rounded-full ring-2 ring-ink-900 ${
-          listening
-            ? "bg-pulse-400 text-ink-950"
-            : "bg-ink-950 text-sand-100/55"
-        }`}
-      >
-        <HeadsetIcon className="h-3.5 w-3.5" />
-        {!listening ? (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="block h-[1.5px] w-4 rotate-[-40deg] rounded bg-red-400" />
+      {/* Status row — headset + mute, centered horizontally */}
+      <span className="flex items-center gap-1">
+        <span
+          title={listening ? "接听中" : "听筒已关"}
+          className={`relative grid h-3.5 w-3.5 place-items-center rounded-full ${
+            listening
+              ? "bg-pulse-400/90 text-ink-950"
+              : "bg-ink-950/80 text-sand-100/55"
+          }`}
+        >
+          <HeadsetIcon className="h-2 w-2" />
+          {!listening ? (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <span className="block h-[1px] w-2 rotate-[-40deg] rounded bg-red-400" />
+            </span>
+          ) : null}
+        </span>
+
+        {muted ? (
+          <span
+            title="已静音"
+            className="grid h-3.5 w-3.5 place-items-center rounded-full bg-ink-950/80 text-red-300"
+          >
+            <MicOffIcon className="h-2 w-2" />
           </span>
         ) : null}
       </span>
-
-      {muted ? (
-        <span
-          title="已静音"
-          className="absolute -bottom-1 -right-1 z-10 grid h-6 w-6 place-items-center rounded-full bg-ink-950 text-red-300 ring-2 ring-ink-900"
-        >
-          <MicOffIcon />
-        </span>
-      ) : null}
-
-      {isLocal ? (
-        <span className="absolute -right-1 -top-1 z-10 rounded-full bg-pulse-400 px-1.5 py-0.5 text-[10px] font-bold text-ink-950">
-          我
-        </span>
-      ) : null}
     </>
   );
 }
