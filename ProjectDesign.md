@@ -14,8 +14,8 @@ Hez 是一个**多人实时语音通话**应用，类似 Discord 语音频道，
 - 内置 QQ 风格**群聊**（通过 LiveKit DataChannel，非独立聊天服务）
 - 中文界面，中文错误提示
 
-**正式域名：** `https://hez.zhutairo.top`（首尔服务器 43.108.12.78）
-**国内 LiveKit 节点：** 1.94.102.147
+**正式域名：** `https://hez.zhutairo.top`（首尔主服务器）
+**国内 LiveKit 节点：** 国内辅服务器（延迟优化）
 
 ---
 
@@ -202,17 +202,17 @@ CREATE TABLE settings (
 
 ### 服务器
 
-| 角色 | IP | 域名 | 服务 |
-|------|-----|------|------|
-| 首尔（主） | 43.108.12.78 | hez.zhutairo.top | Nginx + API + LiveKit(seoul) + 静态前端 |
-| 国内（辅） | 1.94.102.147 | — | LiveKit(cn) |
+| 角色 | 域名 | 服务 |
+|------|------|------|
+| 首尔（主） | hez.zhutairo.top | Nginx + API + LiveKit(seoul) + 静态前端 |
+| 国内（辅） | — | LiveKit(cn) |
 
 ### Nginx 路由（首尔）
 
 ```
 :443 SSL
   /rtc        → 127.0.0.1:17880  (Seoul LiveKit WebSocket)
-  /lk-cn/     → 1.94.102.147:7880 (China LiveKit, proxy_ssl_verify off)
+  /lk-cn/     → 国内服务器:7880   (China LiveKit, proxy_ssl_verify off)
   /twirp/     → LiveKit Room Service
   /api/       → 127.0.0.1:3001   (Express API)
   /           → apps/web/dist     (静态文件 + SPA fallback)
@@ -292,7 +292,7 @@ npm run demo
 | `HEZ_ADMIN_RESET` | — | 设为 `1` 重置管理员密码 |
 | `HEZ_DEMO` | — | 设为 `1` 启用演示模式 |
 | `HEZ_LK_LOCAL_DIR` | `/opt/hez` | 本地 LiveKit 项目目录 |
-| `HEZ_LK_CN_HOST` | `1.94.102.147` | 国内服务器 IP |
+| `HEZ_LK_CN_HOST` | — | 国内服务器 IP |
 | `HEZ_LK_CN_USER` | root | 国内服务器 SSH 用户 |
 | `HEZ_LK_CN_PASSWORD` | — | 国内服务器 SSH 密码 |
 | `HEZ_LK_CN_DIR` | `/opt/hez` | 国内服务器项目目录 |
