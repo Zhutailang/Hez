@@ -72,7 +72,7 @@ npm run dev:web
 npm run demo
 ```
 
-预置账号（密码均为 `demo123`）：
+预置账号（密码见 `.env.example`）：
 
 | 用户 | 显示名 |
 |------|--------|

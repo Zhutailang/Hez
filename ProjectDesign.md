@@ -281,18 +281,18 @@ npm run demo
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | 3001 | API 端口 |
-| `JWT_SECRET` | dev secret | JWT 签名密钥 |
+| `JWT_SECRET` | — | JWT 签名密钥 |
 | `DATABASE_PATH` | `./data/hez.db` | SQLite 文件路径 |
 | `LIVEKIT_URL` | `ws://localhost:7880` | LiveKit WebSocket URL |
-| `LIVEKIT_API_KEY` | `APIhezdevkey` | LiveKit API Key |
+| `LIVEKIT_API_KEY` | — | LiveKit API Key |
 | `LIVEKIT_API_SECRET` | (见 .env.example) | LiveKit API Secret |
 | `CORS_ORIGIN` | `http://localhost:5173` | CORS 允许源（逗号分隔） |
 | `HEZ_ADMIN_USERNAME` | Admin | 管理员用户名 |
-| `HEZ_ADMIN_PASSWORD` | liwei0.123 | 管理员密码 |
+| `HEZ_ADMIN_PASSWORD` | — | 管理员密码 |
 | `HEZ_ADMIN_RESET` | — | 设为 `1` 重置管理员密码 |
 | `HEZ_DEMO` | — | 设为 `1` 启用演示模式 |
 | `HEZ_LK_LOCAL_DIR` | `/opt/hez` | 本地 LiveKit 项目目录 |
 | `HEZ_LK_CN_HOST` | — | 国内服务器 IP |
-| `HEZ_LK_CN_USER` | root | 国内服务器 SSH 用户 |
+| `HEZ_LK_CN_USER` | — | 国内服务器 SSH 用户 |
 | `HEZ_LK_CN_PASSWORD` | — | 国内服务器 SSH 密码 |
 | `HEZ_LK_CN_DIR` | `/opt/hez` | 国内服务器项目目录 |
