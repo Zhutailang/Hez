@@ -1,0 +1,55 @@
+---
+description: 更新 ProjectDesign.md 项目设计文档，保持与代码同步
+globs:
+  - apps/server/src/**/*.ts
+  - apps/web/src/**/*.ts
+  - apps/web/src/**/*.tsx
+  - apps/server/package.json
+  - apps/web/package.json
+  - docker-compose*.yml
+  - livekit*.yaml
+  - .env.example
+---
+
+# 更新 ProjectDesign.md
+
+当项目的技术栈、API、数据库、部署方式等发生实质性变化时，更新根目录的 `ProjectDesign.md`。
+
+## 何时触发
+
+- 新增或删除 API 路由
+- 数据库 Schema 变化（新增表、字段）
+- 新增/更换框架或关键依赖
+- 部署架构变化（服务器、端口、域名）
+- 环境变量新增或语义变化
+- 新增页面或重要组件
+- LiveKit 配置变化
+
+## 何时不触发
+
+- 纯 UI 样式调整（颜色、间距、动画）
+- Bug 修复不涉及架构
+- 重构但接口不变
+- 文档/注释修改
+
+## 更新流程
+
+1. 读取当前 `ProjectDesign.md`
+2. 读取变化涉及的源文件
+3. 更新对应的章节（不要重写全文）
+4. 更新文档顶部的「最后更新」日期
+5. 保持 Markdown 格式和表格对齐
+
+## 文档章节映射
+
+| 变化类型 | 更新章节 |
+|---------|---------|
+| package.json 依赖变化 | 二、技术栈 |
+| 目录结构变化 | 三、目录结构 |
+| db.ts Schema 变化 | 四、数据库设计 |
+| index.ts 路由变化 | 五、API 接口 |
+| auth.ts 变化 | 六、认证机制 |
+| livekit*.yaml 变化 | 七、LiveKit 集成架构 |
+| docker-compose / nginx / 脚本变化 | 八、部署架构 |
+| .env.example 变化 | 十一、环境变量 |
+| 新页面/组件 | 三、目录结构 + 相关章节 |
