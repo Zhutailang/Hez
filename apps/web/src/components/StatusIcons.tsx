@@ -63,16 +63,16 @@ export function AvatarStatusBadges({ listening = true, muted }: BadgeProps) {
       <span className="flex items-center gap-1">
         <span
           title={listening ? "接听中" : "听筒已关"}
-          className={`relative grid h-3.5 w-3.5 place-items-center rounded-full ${
+          className={`relative grid h-4 w-4 place-items-center rounded-full ${
             listening
               ? "bg-pulse-400/90 text-ink-950"
               : "bg-ink-950/80 text-sand-100/55"
           }`}
         >
-          <HeadsetIcon className="h-2 w-2" />
+          <HeadsetIcon className="h-2.5 w-2.5" />
           {!listening ? (
             <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="block h-[1px] w-2 rotate-[-40deg] rounded bg-red-400" />
+              <span className="block h-[1px] w-2.5 rotate-[-40deg] rounded bg-red-400" />
             </span>
           ) : null}
         </span>
@@ -80,9 +80,9 @@ export function AvatarStatusBadges({ listening = true, muted }: BadgeProps) {
         {muted ? (
           <span
             title="已静音"
-            className="grid h-3.5 w-3.5 place-items-center rounded-full bg-ink-950/80 text-red-300"
+            className="grid h-4 w-4 place-items-center rounded-full bg-ink-950/80 text-red-300"
           >
-            <MicOffIcon className="h-2 w-2" />
+            <MicOffIcon className="h-2.5 w-2.5" />
           </span>
         ) : null}
       </span>

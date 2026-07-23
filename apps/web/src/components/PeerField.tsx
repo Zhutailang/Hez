@@ -28,7 +28,7 @@ const BUBBLE_COLORS = [
   "from-[#7ec8a3] to-[#3f8f6d]",
 ];
 
-const GAP = 3;
+const GAP = 16;
 
 function hashId(id: string) {
   let hash = 0;
@@ -53,7 +53,9 @@ function gridCols(total: number): number {
  * Targets a square-ish grid; scales down for many peers.
  */
 function cardSize(containerW: number, containerH: number, total: number): number {
-  if (total <= 0) return 80;
+  // y = 1.2x baseline, max = 2y, min = 0.5y
+  const BASE_SIZE = 120; // 1.2x previous 100px standard
+  if (total <= 0) return BASE_SIZE;
 
   const cols = gridCols(total);
   const rows = Math.ceil(total / cols);
@@ -62,9 +64,10 @@ function cardSize(containerW: number, containerH: number, total: number): number
   const cellW = (containerW - GAP * (cols + 1)) / cols;
   const cellH = (containerH - GAP * (rows + 1)) / rows;
 
-  // Card = smaller dimension of cell, capped
-  const raw = Math.min(cellW, cellH);
-  return Math.max(60, Math.min(120, Math.floor(raw)));
+  // Card = smaller dimension of cell, scaled up 1.2x
+  const raw = Math.min(cellW, cellH) * 1.2;
+  // Clamp: min = 0.5y, max = 2y
+  return Math.max(BASE_SIZE * 0.5, Math.min(BASE_SIZE * 2, Math.floor(raw)));
 }
 
 /**
@@ -256,7 +259,7 @@ export default function PeerField({
             >
               {/* "我" badge */}
               {peer.isLocal ? (
-                <span className="absolute right-0.5 top-0.5 z-10 rounded-full bg-pulse-400 px-1 py-0.5 text-[7px] font-bold leading-none text-ink-950">
+                <span className="absolute right-0.5 top-0.5 z-10 rounded-full bg-pulse-400 px-1.5 py-0.5 text-[9px] font-bold leading-none text-ink-950">
                   我
                 </span>
               ) : null}

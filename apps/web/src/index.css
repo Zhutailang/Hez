@@ -109,30 +109,30 @@ body {
 /* Extra-small: inside peer cards (must come AFTER .hez-volume to win specificity) */
 .hez-volume-xs {
   width: 100%;
-  height: 0.25rem;
+  height: 0.3rem;
 }
 .hez-volume-xs::-webkit-slider-runnable-track {
-  height: 0.25rem;
+  height: 0.3rem;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.15);
 }
 .hez-volume-xs::-webkit-slider-thumb {
   appearance: none;
-  width: 0.6rem;
-  height: 0.6rem;
-  margin-top: -0.18rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: -0.22rem;
   border-radius: 999px;
   border: 0;
   background: rgba(0, 0, 0, 0.35);
 }
 .hez-volume-xs::-moz-range-track {
-  height: 0.25rem;
+  height: 0.3rem;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.15);
 }
 .hez-volume-xs::-moz-range-thumb {
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 999px;
   border: 0;
   background: rgba(0, 0, 0, 0.35);
