@@ -2,6 +2,9 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import bcrypt from "bcryptjs";
+import multer from "multer";
+import fs from "node:fs";
+import path from "node:path";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { db } from "./db.js";
@@ -45,6 +48,48 @@ app.use(
   }),
 );
 app.use(express.json());
+
+// Avatar storage
+const DB_DIR = path.dirname(process.env.DATABASE_PATH || "./data/hez.db");
+const AVATAR_DIR = path.join(DB_DIR, "avatars");
+fs.mkdirSync(AVATAR_DIR, { recursive: true });
+
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
+    filename: (req, _file, cb) => {
+      const ext = ".webp"; // normalize to webp
+      cb(null, `${(req as AuthedRequest).user!.id}${ext}`);
+    },
+  }),
+  limits: { fileSize: 1024 * 1024 }, // 1 MB
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("仅支持 JPG/PNG/GIF/WEBP 格式"));
+    }
+  },
+});
+
+// Serve avatar files
+app.use("/avatars", express.static(AVATAR_DIR, {
+  maxAge: "1d",
+  setHeaders: (res) => {
+    res.setHeader("Cache-Control", "public, max-age=86400");
+  },
+}));
+
+// Helper: build user response object
+function userResponse(row: { id: string; username: string; display_name: string; role: string; avatar_url?: string | null }) {
+  return {
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    role: (row.role === "admin" ? "admin" : "user") as "admin" | "user",
+    avatarUrl: row.avatar_url || null,
+  };
+}
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "hez", demo: DEMO_MODE });
@@ -101,8 +146,8 @@ app.post("/api/auth/register", async (req, res) => {
     "INSERT INTO users (id, username, display_name, password_hash, role) VALUES (?, ?, ?, ?, 'user')",
   ).run(id, username, displayName, passwordHash);
 
-  const user = { id, username, displayName, role: "user" as const };
-  return res.status(201).json({ token: signToken(user), user });
+  const user = { id, username, displayName, role: "user" as const, avatarUrl: null };
+  return res.status(201).json({ token: signToken({ id, username, displayName, role: "user" as const }), user });
 });
 
 const loginSchema = z.object({
@@ -118,7 +163,7 @@ app.post("/api/auth/login", async (req, res) => {
 
   const row = db
     .prepare(
-      "SELECT id, username, display_name, password_hash, role FROM users WHERE username = ?",
+      "SELECT id, username, display_name, password_hash, role, avatar_url FROM users WHERE username = ?",
     )
     .get(parsed.data.username) as
     | {
@@ -127,6 +172,7 @@ app.post("/api/auth/login", async (req, res) => {
         display_name: string;
         password_hash: string;
         role: string;
+        avatar_url: string | null;
       }
     | undefined;
 
@@ -134,31 +180,64 @@ app.post("/api/auth/login", async (req, res) => {
     return res.status(401).json({ error: "用户名或密码错误" });
   }
 
-  const user = {
-    id: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    role: (row.role === "admin" ? "admin" : "user") as "admin" | "user",
-  };
+  const user = userResponse(row);
   return res.json({ token: signToken(user), user });
 });
 
 app.get("/api/auth/me", requireAuth, (req: AuthedRequest, res) => {
   const row = db
-    .prepare("SELECT id, username, display_name, role FROM users WHERE id = ?")
+    .prepare("SELECT id, username, display_name, role, avatar_url FROM users WHERE id = ?")
     .get(req.user!.id) as
-    | { id: string; username: string; display_name: string; role: string }
+    | { id: string; username: string; display_name: string; role: string; avatar_url: string | null }
     | undefined;
   if (!row) {
     return res.status(401).json({ error: "用户不存在" });
   }
-  const user = {
-    id: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    role: (row.role === "admin" ? "admin" : "user") as "admin" | "user",
-  };
-  res.json({ user });
+  res.json({ user: userResponse(row) });
+});
+
+// Update display name
+const updateProfileSchema = z.object({
+  displayName: z.string().trim().min(1).max(40),
+});
+
+app.put("/api/auth/me", requireAuth, (req: AuthedRequest, res) => {
+  const parsed = updateProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "参数无效" });
+  }
+  db.prepare("UPDATE users SET display_name = ? WHERE id = ?").run(parsed.data.displayName, req.user!.id);
+  const row = db
+    .prepare("SELECT id, username, display_name, role, avatar_url FROM users WHERE id = ?")
+    .get(req.user!.id) as { id: string; username: string; display_name: string; role: string; avatar_url: string | null };
+  res.json({ user: userResponse(row) });
+});
+
+// Upload avatar
+app.post("/api/auth/me/avatar", requireAuth, (req: AuthedRequest, res) => {
+  avatarUpload.single("avatar")(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "头像文件不能超过 1MB" });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: "请选择头像文件" });
+    }
+
+    const userId = req.user!.id;
+    const avatarUrl = `/avatars/${req.file.filename}`;
+    db.prepare("UPDATE users SET avatar_url = ? WHERE id = ?").run(avatarUrl, userId);
+
+    const row = db
+      .prepare("SELECT id, username, display_name, role, avatar_url FROM users WHERE id = ?")
+      .get(userId) as { id: string; username: string; display_name: string; role: string; avatar_url: string | null };
+    res.json({ user: userResponse(row) });
+  });
 });
 
 app.get("/api/admin/settings", requireAdmin, (_req, res) => {

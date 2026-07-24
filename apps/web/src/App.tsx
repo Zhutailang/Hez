@@ -5,6 +5,7 @@ import AdminPage from "./pages/AdminPage";
 import LobbyPage from "./pages/LobbyPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import UserSettingsPage from "./pages/UserSettingsPage";
 
 // LiveKit is heavy — load room/lab chunks only when opened
 const LabPage = lazy(() => import("./pages/LabPage"));
@@ -52,6 +53,14 @@ export default function App() {
           element={
             <Protected>
               <AdminPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <Protected>
+              <UserSettingsPage />
             </Protected>
           }
         />

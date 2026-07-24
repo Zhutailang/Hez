@@ -38,3 +38,10 @@ const userCols = db.prepare("PRAGMA table_info(users)").all() as { name: string 
 if (!userCols.some((c) => c.name === "role")) {
   db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`);
 }
+if (!userCols.some((c) => c.name === "avatar_url")) {
+  db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`);
+}
+
+// Ensure avatar storage directory exists
+const avatarDir = path.join(path.dirname(dbPath), "avatars");
+fs.mkdirSync(avatarDir, { recursive: true });

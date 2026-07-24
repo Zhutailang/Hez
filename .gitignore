@@ -25,6 +25,7 @@ scripts/ssh_probe.py
 scripts/deploy_cloud.py
 scripts/deploy_cloud_continue.py
 scripts/deploy_cloud_finish.py
+scripts/deploy_pull_both.py
 scripts/diag_hez_api.py
 scripts/enable_https.py
 scripts/fix_domain_cors.py

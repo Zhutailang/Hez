@@ -16,6 +16,7 @@ type AuthState = {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, displayName: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (partial: Partial<User>) => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -83,9 +84,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback(
+    (partial: Partial<User>) => {
+      setUser((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...partial };
+        const curToken = localStorage.getItem(STORAGE_KEY);
+        if (curToken) {
+          const parsed = JSON.parse(curToken);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: parsed.token, user: next }));
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout }),
-    [user, token, loading, login, register, logout],
+    () => ({ user, token, loading, login, register, logout, updateUser }),
+    [user, token, loading, login, register, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

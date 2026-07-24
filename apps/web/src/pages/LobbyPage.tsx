@@ -115,15 +115,28 @@ export default function LobbyPage() {
       <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
         <BrandMark />
         <div className="flex flex-wrap items-center justify-end gap-2 text-sm sm:gap-4">
-          <span className="max-w-[40vw] truncate text-sand-100/65 sm:max-w-none">
-            {user?.displayName}
-          </span>
+          <Link to="/settings" className="flex items-center gap-2 group" title="用户设置">
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="头像"
+                className="h-7 w-7 rounded-full object-cover ring-1 ring-white/15 transition group-hover:ring-pulse-400/50"
+              />
+            ) : (
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#3dd6b8] to-[#149882] text-xs font-bold text-ink-950 ring-1 ring-white/15 transition group-hover:ring-pulse-400/50">
+                {user?.displayName?.slice(0, 1).toUpperCase() || "?"}
+              </span>
+            )}
+            <span className="max-w-[40vw] truncate text-sand-100/65 transition group-hover:text-pulse-300 sm:max-w-none">
+              {user?.displayName}
+            </span>
+          </Link>
           {user?.role === "admin" ? (
             <Link
               to="/admin"
               className="rounded-lg border border-pulse-400/35 px-2.5 py-1.5 text-pulse-300 transition hover:bg-pulse-500/10 sm:px-3"
             >
-              设置
+              服务器设置
             </Link>
           ) : null}
           <button

@@ -3,6 +3,7 @@ export type User = {
   username: string;
   displayName: string;
   role?: "user" | "admin";
+  avatarUrl?: string | null;
 };
 
 export type LivekitEndpoint = {
@@ -92,4 +93,21 @@ export const api = {
       { method: "PUT", body: JSON.stringify(body) },
       token,
     ),
+  updateProfile: (token: string, body: { displayName: string }) =>
+    request<{ user: User }>("/api/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }, token),
+  uploadAvatar: async (token: string, file: File) => {
+    const form = new FormData();
+    form.append("avatar", file);
+    const res = await fetch("/api/auth/me/avatar", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "上传失败");
+    return data as { user: User };
+  },
 };
